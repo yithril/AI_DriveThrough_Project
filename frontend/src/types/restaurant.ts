@@ -58,4 +58,9 @@ export interface ThemeColors {
     secondary: string;
     secondaryHover: string;
   };
+  error?: {
+    background: string;
+    text: string;
+    border: string;
+  };
 }

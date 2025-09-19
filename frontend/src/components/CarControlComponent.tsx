@@ -11,7 +11,7 @@ interface NewCarResponse {
   success: boolean;
   message: string;
   data: {
-    session: any;
+    session: unknown;
     greeting_audio_url?: string;
   };
 }

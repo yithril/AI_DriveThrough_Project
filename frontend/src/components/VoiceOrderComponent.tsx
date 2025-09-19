@@ -11,13 +11,11 @@ interface VoiceOrderComponentProps {
 
 export default function VoiceOrderComponent({ onOrderReceived }: VoiceOrderComponentProps) {
   const { theme } = useTheme();
-  const [isListening, setIsListening] = useState(false);
-  const [lastRecording, setLastRecording] = useState<Blob | null>(null);
   const [orderText, setOrderText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
   const handleRecordingComplete = async (audioBlob: Blob) => {
-    setLastRecording(audioBlob);
     setIsProcessing(true);
     
     try {
@@ -152,7 +150,6 @@ export default function VoiceOrderComponent({ onOrderReceived }: VoiceOrderCompo
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => {
-            const text = "Our special today is the Cosmic Burger with galactic fries!";
             // This would trigger the TextToSpeech component
           }}
           className="p-3 rounded-lg font-medium text-sm transition-colors"
@@ -165,7 +162,6 @@ export default function VoiceOrderComponent({ onOrderReceived }: VoiceOrderCompo
         </button>
         <button
           onClick={() => {
-            const text = "We have vegetarian options available!";
             // This would trigger the TextToSpeech component
           }}
           className="p-3 rounded-lg font-medium text-sm transition-colors"

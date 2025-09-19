@@ -32,6 +32,11 @@ const defaultTheme: ThemeColors = {
     secondary: '#4b5563', // gray-600
     secondaryHover: '#6b7280', // gray-500
   },
+  error: {
+    background: '#fee2e2',
+    text: '#dc2626',
+    border: '#fca5a5',
+  },
 };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

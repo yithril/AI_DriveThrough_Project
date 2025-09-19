@@ -7,7 +7,6 @@ import OrderComponent from '@/components/OrderComponent';
 import CarControlComponent from '@/components/CarControlComponent';
 import MenuListComponent from '@/components/MenuListComponent';
 import RestaurantLogo from '@/components/RestaurantLogo';
-import VoiceOrderComponent from '@/components/VoiceOrderComponent';
 import SpeakerIcon from '@/components/SpeakerIcon';
 import LoadingSpinner from '@/components/LoadingSpinner';
 

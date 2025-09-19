@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 
 interface TextToSpeechProps {
@@ -53,13 +53,7 @@ export default function TextToSpeech({
     };
   }, []);
 
-  useEffect(() => {
-    if (autoPlay && text) {
-      speak();
-    }
-  }, [autoPlay, text]);
-
-  const speak = () => {
+  const speak = useCallback(() => {
     if (!text) return;
 
     // Stop any current speech
@@ -95,7 +89,13 @@ export default function TextToSpeech({
     };
 
     speechSynthesis.speak(utterance);
-  };
+  }, [text, selectedVoice, rate, pitch, onSpeechStart, onSpeechEnd]);
+
+  useEffect(() => {
+    if (autoPlay && text) {
+      speak();
+    }
+  }, [autoPlay, text, speak]);
 
   const pause = () => {
     if (isSpeaking && !isPaused) {

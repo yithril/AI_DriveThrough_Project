@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Restaurant, MenuCategory } from '@/types/restaurant';
 import { apiClient } from '@/lib/api';
 

@@ -1,11 +1,11 @@
 'use client';
 
 import React from 'react';
-import { MenuItem } from '@/types/restaurant';
+import { MenuItem, ThemeColors } from '@/types/restaurant';
 
 interface MenuItemCardProps {
   item: MenuItem;
-  theme: { primary: string; secondary: string };
+  theme: ThemeColors;
   restaurantId?: number;
 }
 

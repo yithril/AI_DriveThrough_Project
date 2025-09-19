@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from 'axios';
 import { Restaurant, MenuCategory, RestaurantMenuResponse } from '@/types/restaurant';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
@@ -37,21 +37,22 @@ class ApiClient {
     );
   }
 
-  private async request<T>(endpoint: string, options: any = {}): Promise<T> {
+  private async request<T>(endpoint: string, options: AxiosRequestConfig = {}): Promise<T> {
     try {
       const response: AxiosResponse<T> = await this.client.request({
         url: endpoint,
         ...options,
       });
       return response.data;
-    } catch (error: any) {
-      if (error.response) {
-        throw new Error(`API request failed: ${error.response.status} ${error.response.statusText}`);
-      } else if (error.request) {
-        throw new Error('Network error: Unable to reach the server');
-      } else {
-        throw new Error(`Request error: ${error.message}`);
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          throw new Error(`API request failed: ${error.response.status} ${error.response.statusText}`);
+        } else if (error.request) {
+          throw new Error('Network error: Unable to reach the server');
+        }
       }
+      throw new Error(`Request error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -61,7 +62,7 @@ class ApiClient {
   }
 
   // AI endpoints
-  async processAudio(audioFile: File, restaurantId: number, orderId?: number, language: string = 'en'): Promise<any> {
+  async processAudio(audioFile: File, restaurantId: number, orderId?: number, language: string = 'en'): Promise<unknown> {
     const formData = new FormData();
     formData.append('audio_file', audioFile);
     formData.append('restaurant_id', restaurantId.toString());
@@ -84,7 +85,7 @@ class ApiClient {
     return this.request('/api/restaurants/health');
   }
 
-  async checkAiHealth(): Promise<{ status: string; services: any; message: string }> {
+  async checkAiHealth(): Promise<{ status: string; services: Record<string, string>; message: string }> {
     return this.request('/api/ai/health');
   }
 }
