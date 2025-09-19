@@ -45,16 +45,7 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-2
     
-    - name: Get database credentials
-      id: get-db-creds
-      run: |
-        DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ai-drivethru-db-password --query SecretString --output text)
-        DB_ENDPOINT=$(aws rds describe-db-instances --db-instance-identifier ai-drivethru-db --query 'DBInstances[0].Endpoint.Address' --output text)
-        echo "DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@${DB_ENDPOINT}:5432/ai_drivethru" >> $GITHUB_ENV
-    
-    - name: Run database migrations
-      working-directory: ./backend
-      run: poetry run alembic upgrade head
+    # Database migrations handled manually
     
     - name: Build Docker image
       run: |
