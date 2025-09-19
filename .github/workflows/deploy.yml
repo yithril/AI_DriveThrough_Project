@@ -1,0 +1,115 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+    
+    - name: Load cached venv
+      id: cached-poetry-dependencies
+      uses: actions/cache@v3
+      with:
+        path: backend/.venv
+        key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+    
+    - name: Install dependencies
+      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      working-directory: ./backend
+      run: poetry install --no-interaction --no-root
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-2
+    
+    - name: Get database credentials
+      id: get-db-creds
+      run: |
+        DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ai-drivethru-db-password --query SecretString --output text)
+        DB_ENDPOINT=$(aws rds describe-db-instances --db-instance-identifier ai-drivethru-db --query 'DBInstances[0].Endpoint.Address' --output text)
+        echo "DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@${DB_ENDPOINT}:5432/ai_drivethru" >> $GITHUB_ENV
+    
+    - name: Run database migrations
+      working-directory: ./backend
+      run: poetry run alembic upgrade head
+    
+    - name: Build Docker image
+      run: |
+        docker build -t ai-drivethru-backend ./backend
+    
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+    
+    - name: Build, tag, and push image to Amazon ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ai-drivethru-backend
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker tag ai-drivethru-backend:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker tag ai-drivethru-backend:latest $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+    
+    - name: Update ECS service
+      run: |
+        aws ecs update-service --cluster ai-drivethru-cluster --service ai-drivethru-backend-service --force-new-deployment
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Get backend URL
+      id: get-backend-url
+      run: |
+        BACKEND_URL=$(aws elbv2 describe-load-balancers --names ai-drivethru-alb --query 'LoadBalancers[0].DNSName' --output text)
+        echo "NEXT_PUBLIC_API_URL=http://${BACKEND_URL}" >> $GITHUB_ENV
+    
+    - name: Build frontend
+      working-directory: ./frontend
+      env:
+        NEXT_PUBLIC_API_URL: ${{ env.NEXT_PUBLIC_API_URL }}
+      run: npm run build
+    
+    - name: Deploy to S3
+      run: |
+        aws s3 sync frontend/out s3://ai-drivethru-frontend --delete

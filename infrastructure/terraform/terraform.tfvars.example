@@ -1,0 +1,23 @@
+# Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+
+# AWS Configuration
+aws_region = "us-east-1"
+environment = "prod"
+
+# Database Configuration
+db_instance_class = "db.t3.micro"
+db_allocated_storage = 20
+
+# ECS Configuration (replaces App Runner)
+# ECS uses Fargate with auto-scaling
+
+# Redis Configuration (set to false to disable and save costs)
+enable_redis = false
+
+# GitHub Repository (for Amplify)
+github_repository_url = "https://github.com/yourusername/your-repo"
+
+# Custom Domain (optional)
+domain_name = ""
+certificate_arn = ""

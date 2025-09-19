@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AI DriveThru FastAPI application
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.11
+    MemorySize: 1024
+    Environment:
+      Variables:
+        DATABASE_URL: !Ref DatabaseUrl
+        OPENAI_API_KEY: !Ref OpenAIApiKey
+        JWT_SECRET: !Ref JwtSecret
+        DEBUG: "False"
+
+Parameters:
+  DatabaseUrl:
+    Type: String
+    Description: PostgreSQL database connection string
+    Default: "postgresql://user:password@localhost:5432/ai_drivethru"
+  
+  OpenAIApiKey:
+    Type: String
+    Description: OpenAI API key
+    NoEcho: true
+  
+  JwtSecret:
+    Type: String
+    Description: JWT secret for authentication
+    NoEcho: true
+
+Resources:
+  # Main API function
+  AIDriveThruAPI:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ai-drivethru-api
+      CodeUri: .
+      Handler: lambda_handler.handler
+      Events:
+        ApiGateway:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+        RootPath:
+          Type: Api
+          Properties:
+            Path: /
+            Method: ANY
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          OPENAI_API_KEY: !Ref OpenAIApiKey
+          JWT_SECRET: !Ref JwtSecret
+          DEBUG: "False"
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
+  # API Gateway
+  AIDriveThruApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+
+Outputs:
+  AIDriveThruAPI:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${AIDriveThruApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/"
+  
+  AIDriveThruFunction:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt AIDriveThruAPI.Arn

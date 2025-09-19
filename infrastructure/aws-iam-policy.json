@@ -1,0 +1,25 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "apprunner:*",
+                "rds:*",
+                "ec2:*",
+                "s3:*",
+                "ecr:*",
+                "amplify:*",
+                "secretsmanager:*",
+                "logs:*",
+                "cloudwatch:*",
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:PassRole",
+                "iam:GetRole",
+                "iam:ListRoles"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

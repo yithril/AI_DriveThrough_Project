@@ -1,0 +1,14 @@
+Speech Service Integration Test Summary
+==================================================
+
+Total tests: 1
+Successful: 1
+Failed: 0
+
+✅ SUCCESSFUL TESTS:
+------------------------------
+File: test_recording_1.m4a
+Language: en
+Confidence: 0.95
+Transcript: I'd like one asteroid cookie, two looter lemonades, one Milky Way shake, and an order of cosmic onion rings.
+
