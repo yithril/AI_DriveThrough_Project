@@ -1,9 +1,9 @@
 # Outputs for AI DriveThru Infrastructure
 
-# Load Balancer URL (ECS Backend)
+# ECS Service URL (Direct Access)
 output "backend_url" {
-  description = "ECS backend URL via Load Balancer"
-  value       = "http://${aws_lb.main.dns_name}"
+  description = "ECS backend URL (direct access)"
+  value       = "Check ECS console for the public IP of the running task"
 }
 
 # Amplify App URL

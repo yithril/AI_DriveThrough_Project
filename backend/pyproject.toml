@@ -22,10 +22,6 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pydantic>=2.5.0",
     "pytest (>=8.4.2,<9.0.0)",
-    # CPU-only torch to reduce image size
-    "torch>=2.0.0,<3.0.0; platform_machine != 'arm64'",
-    "torch>=2.0.0,<3.0.0; platform_machine == 'arm64'",
-    "llm-guard (>=0.3.16,<0.4.0)",
     "langchain (>=0.3.27,<0.4.0)",
     "langchain-openai (>=0.3.33,<0.4.0)",
     "langchain-community (>=0.3.29,<0.4.0)",

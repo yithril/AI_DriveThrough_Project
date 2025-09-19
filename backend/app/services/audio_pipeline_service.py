@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..dto.order_result import OrderResult
 from ..models.language import Language
 from .speech_service import SpeechService
-from .llm_guard_service import LLMGuardService
+from .validation_interface import ValidationServiceInterface
 from .order_intent_processor import OrderIntentProcessor
 from .file_storage_service import FileStorageService
 from .order_service import OrderService
@@ -23,13 +23,13 @@ class AudioPipelineService:
     def __init__(
         self,
         speech_service: SpeechService,
-        llm_guard_service: LLMGuardService,
+        validation_service: ValidationServiceInterface,
         order_intent_processor: OrderIntentProcessor,
         file_storage_service: FileStorageService,
         order_service: OrderService
     ):
         self.speech_service = speech_service
-        self.llm_guard_service = llm_guard_service
+        self.validation_service = validation_service
         self.order_intent_processor = order_intent_processor
         self.file_storage_service = file_storage_service
         self.order_service = order_service
@@ -199,7 +199,7 @@ class AudioPipelineService:
     
     async def _validate_transcript(self, transcript: str) -> OrderResult:
         """Validate transcript with LLM Guard"""
-        guard_result = await self.llm_guard_service.validate_input(transcript)
+        guard_result = await self.validation_service.validate_input(transcript)
         if not guard_result.success:
             return OrderResult.error("Input blocked by safety filter")
         

@@ -101,18 +101,10 @@ resource "aws_ecs_service" "backend" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = aws_subnet.private[*].id
+    subnets          = aws_subnet.public[*].id  # Use public subnets for direct access
     security_groups  = [aws_security_group.ecs.id]
-    assign_public_ip = false
+    assign_public_ip = true  # Enable public IP for direct access
   }
-
-  load_balancer {
-    target_group_arn = aws_lb_target_group.backend.arn
-    container_name   = "backend"
-    container_port   = 8000
-  }
-
-  depends_on = [aws_lb_listener.backend]
 
   tags = local.common_tags
 }
@@ -160,4 +152,12 @@ resource "aws_appautoscaling_policy" "ecs_scale_in" {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
   }
+}
+
+# CloudWatch Log Group for ECS
+resource "aws_cloudwatch_log_group" "ecs" {
+  name              = "/ecs/${local.project_name}"
+  retention_in_days = 7
+
+  tags = local.common_tags
 }

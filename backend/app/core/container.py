@@ -23,14 +23,14 @@ class Container(containers.DeclarativeContainer):
     
     # Core services (no dependencies) - using lazy imports
     speech_service = providers.Singleton("app.services.speech_service.SpeechService")
-    llm_guard_service = providers.Singleton("app.services.llm_guard_service.LLMGuardService")
+    validation_service = providers.Singleton("app.services.lightweight_validation_service.LightweightValidationService")
     order_intent_processor = providers.Singleton("app.services.ai_agent.OrderIntentProcessor")
     
     # Audio pipeline service (orchestrates other services)
     audio_pipeline_service = providers.Singleton(
         "app.services.audio_pipeline_service.AudioPipelineService",
         speech_service=speech_service,
-        llm_guard_service=llm_guard_service,
+        validation_service=validation_service,
         order_intent_processor=order_intent_processor,
         file_storage_service=file_storage_service,
         order_service=order_service

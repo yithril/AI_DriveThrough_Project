@@ -15,7 +15,7 @@ resource "aws_amplify_app" "frontend" {
 
   # Environment variables
   environment_variables = {
-    NEXT_PUBLIC_API_URL = "http://${aws_lb.main.dns_name}"
+    NEXT_PUBLIC_API_URL = "http://ecs-task-ip:8000"  # Will be updated by GitHub Actions
     NEXT_PUBLIC_ENVIRONMENT = var.environment
   }
 
@@ -51,7 +51,7 @@ resource "aws_amplify_branch" "main" {
 
   # Environment variables
   environment_variables = {
-    NEXT_PUBLIC_API_URL = "http://${aws_lb.main.dns_name}"
+    NEXT_PUBLIC_API_URL = "http://ecs-task-ip:8000"  # Will be updated by GitHub Actions
   }
 
   tags = local.common_tags

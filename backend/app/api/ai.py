@@ -101,7 +101,7 @@ async def ai_health_check():
         "services": {
             "audio_pipeline_service": "Complete audio processing pipeline",
             "speech_service": "OpenAI Whisper API",
-            "llm_guard": "LLM Guard validation", 
+            "validation_service": "Lightweight validation service", 
             "order_intent_processor": "Intent processing",
             "file_storage": "S3 storage"
         },

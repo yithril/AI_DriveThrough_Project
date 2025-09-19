@@ -1,32 +1,31 @@
 """
-LLM Guard service for input validation and safety
+Lightweight validation service using dependency-free prompt guard
 """
 
-from typing import Dict, Any, List
-from llm_guard.input_scanners import PromptInjection, Toxicity
-from llm_guard.input_scanners.prompt_injection import MatchType as PI_MatchType
-from llm_guard.input_scanners.toxicity import MatchType as Toxicity_MatchType
-
+from typing import Dict, Any
+from .validation_interface import ValidationServiceInterface
+from .prompt_guard import PromptGuard, simple_toxicity
 from ..dto.order_result import OrderResult
 
 
-class LLMGuardService:
+class LightweightValidationService(ValidationServiceInterface):
     """
-    Service for validating user input against prompt injection, toxicity, etc.
+    Lightweight validation service using dependency-free prompt guard
+    No heavy ML dependencies - just regex patterns and simple word lists
     """
     
     def __init__(self):
-        """Initialize LLM Guard service with scanners"""
-        # Initialize prompt injection scanner
-        self.prompt_injection_scanner = PromptInjection(
-            threshold=0.5, 
-            match_type=PI_MatchType.FULL
-        )
-        
-        # Initialize toxicity scanner
-        self.toxicity_scanner = Toxicity(
-            threshold=0.5, 
-            match_type=Toxicity_MatchType.SENTENCE
+        """Initialize lightweight validation service"""
+        # Allow trusted domains for drive-thru context
+        self.prompt_guard = PromptGuard(
+            allow_domains={
+                "openai.com",  # OpenAI API
+                "aws.amazon.com",  # AWS services
+                "google.com",  # Google services
+                "microsoft.com",  # Microsoft services
+            },
+            threshold=5,  # Block at score 5 or higher
+            max_untrusted_links=3
         )
     
     async def validate_input(self, text: str) -> OrderResult:
@@ -40,56 +39,58 @@ class LLMGuardService:
             OrderResult: Success if safe, error if blocked
         """
         try:
-            validation_errors = []
-            risk_scores = {}
-            
-            # Check for prompt injection
-            pi_sanitized, pi_is_valid, pi_risk_score = self.prompt_injection_scanner.scan(text)
-            risk_scores["prompt_injection"] = pi_risk_score
-            
-            if not pi_is_valid:
-                validation_errors.append(f"Prompt injection detected (risk: {pi_risk_score:.2f})")
+            # Check for prompt injection and suspicious patterns
+            prompt_verdict = self.prompt_guard.check(text)
             
             # Check for toxicity
-            tox_sanitized, tox_is_valid, tox_risk_score = self.toxicity_scanner.scan(text)
-            risk_scores["toxicity"] = tox_risk_score
+            toxicity_verdict = simple_toxicity(text, threshold=4)
             
-            if not tox_is_valid:
-                validation_errors.append(f"Toxic content detected (risk: {tox_risk_score:.2f})")
+            # Combine results
+            total_score = prompt_verdict["score"] + toxicity_verdict["score"]
+            all_signals = prompt_verdict["signals"] + toxicity_verdict["terms"]
             
-            # If any validation failed, block the input
-            if validation_errors:
+            # If either check blocks, or total score is too high
+            if prompt_verdict["blocked"] or toxicity_verdict["blocked"] or total_score >= 8:
                 return OrderResult.error(
                     "Input blocked by safety filter",
-                    errors=validation_errors,
+                    errors=[
+                        f"Safety check failed (score: {total_score})",
+                        f"Signals detected: {', '.join(all_signals)}"
+                    ],
                     data={
                         "text": text,
-                        "risk_scores": risk_scores,
+                        "prompt_verdict": prompt_verdict,
+                        "toxicity_verdict": toxicity_verdict,
+                        "total_score": total_score,
                         "validation_passed": False
                     }
                 )
             
             # Input passed all safety checks
+            sanitized_text = self.prompt_guard.sanitize(text)
+            
             return OrderResult.success(
                 "Input passed safety validation",
                 data={
                     "text": text,
-                    "sanitized_text": pi_sanitized,  # Use prompt injection sanitized version
+                    "sanitized_text": sanitized_text,
                     "validation_passed": True,
-                    "risk_scores": risk_scores,
-                    "flags": []
+                    "prompt_score": prompt_verdict["score"],
+                    "toxicity_score": toxicity_verdict["score"],
+                    "total_score": total_score,
+                    "signals": all_signals
                 }
             )
             
         except Exception as e:
-            # If LLM Guard fails, err on the side of caution and block
+            # If validation fails, err on the side of caution and block
             return OrderResult.error(
                 "Safety validation failed - input blocked",
-                errors=[f"LLM Guard error: {str(e)}"],
+                errors=[f"Validation error: {str(e)}"],
                 data={
                     "text": text,
                     "validation_passed": False,
-                    "error": "Safety scanner failure"
+                    "error": "Validation service failure"
                 }
             )
     
@@ -125,9 +126,9 @@ class LLMGuardService:
         
         max_risk = max(risk_scores.values())
         
-        if max_risk >= 0.8:
+        if max_risk >= 8:
             return f"High risk detected ({max_risk:.2f})"
-        elif max_risk >= 0.5:
+        elif max_risk >= 5:
             return f"Medium risk detected ({max_risk:.2f})"
         else:
             return f"Low risk detected ({max_risk:.2f})"
