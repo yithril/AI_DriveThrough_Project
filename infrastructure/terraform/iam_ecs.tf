@@ -26,6 +26,35 @@ resource "aws_iam_role_policy_attachment" "ecs_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# Additional policy for ECS execution role to read secrets
+resource "aws_iam_policy" "ecs_execution_secrets" {
+  name = "${local.project_name}-ecs-execution-secrets-policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          aws_secretsmanager_secret.openai_api_key.arn,
+          aws_secretsmanager_secret.db_password.arn
+        ]
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+# Attach secrets policy to execution role
+resource "aws_iam_role_policy_attachment" "ecs_execution_secrets" {
+  role       = aws_iam_role.ecs_execution.name
+  policy_arn = aws_iam_policy.ecs_execution_secrets.arn
+}
+
 # ECS Task Role (for application permissions)
 resource "aws_iam_role" "ecs_task" {
   name = "${local.project_name}-ecs-task-role"

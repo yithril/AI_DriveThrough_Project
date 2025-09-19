@@ -6,10 +6,10 @@ output "backend_url" {
   value       = "Check ECS console for the public IP of the running task"
 }
 
-# Amplify App URL
+# S3 Static Website URL
 output "frontend_url" {
-  description = "Frontend URL"
-  value       = var.github_repository_url != "" ? "https://${aws_amplify_branch.main[0].branch_name}.${aws_amplify_app.frontend[0].default_domain}" : "Amplify not configured"
+  description = "Frontend URL (S3 Static Website)"
+  value       = "https://${aws_s3_bucket.frontend.bucket}.s3-website.${var.aws_region}.amazonaws.com"
 }
 
 # Database Endpoint
