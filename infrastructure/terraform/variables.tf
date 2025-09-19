@@ -75,3 +75,17 @@ variable "openai_api_key" {
   default     = ""
   sensitive   = true
 }
+
+variable "jwt_secret" {
+  description = "JWT secret for backend authentication"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "nextauth_secret" {
+  description = "NextAuth.js secret for frontend authentication"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

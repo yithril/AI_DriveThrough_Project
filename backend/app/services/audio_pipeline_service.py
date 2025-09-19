@@ -10,7 +10,7 @@ from ..dto.order_result import OrderResult
 from ..models.language import Language
 from .speech_service import SpeechService
 from .validation_interface import ValidationServiceInterface
-from .order_intent_processor import OrderIntentProcessor
+from .ai_agent import OrderIntentProcessor
 from .file_storage_service import FileStorageService
 from .order_service import OrderService
 

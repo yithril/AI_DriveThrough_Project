@@ -66,6 +66,18 @@ resource "aws_ecs_task_definition" "backend" {
         {
           name  = "LOG_LEVEL"
           value = "INFO"
+        },
+        {
+          name  = "JWT_SECRET"
+          value = var.jwt_secret
+        },
+        {
+          name  = "NEXTAUTH_SECRET"
+          value = var.nextauth_secret
+        },
+        {
+          name  = "NEXTAUTH_URL"
+          value = "https://ai-drivethru-frontend.s3-website.us-east-2.amazonaws.com"
         }
       ]
 

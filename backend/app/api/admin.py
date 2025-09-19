@@ -14,7 +14,7 @@ from app.core.database import get_db
 from app.services.excel_import_service import ExcelImportService
 from app.services.restaurant_import_service import RestaurantImportService
 from app.services.file_storage_service import S3FileStorageService
-from app.services.audio_generation_service import AudioGenerationService
+from app.services.canned_audio_service import CannedAudioService
 from app.core.config import settings
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -427,7 +427,7 @@ async def admin_import(
     excel_import_service: ExcelImportService = Depends(Provide[Container.excel_import_service]),
     restaurant_import_service: RestaurantImportService = Depends(Provide[Container.restaurant_import_service]),
     file_storage_service: S3FileStorageService = Depends(Provide[Container.file_storage_service]),
-    audio_generation_service: AudioGenerationService = Depends(Provide[Container.audio_generation_service]),
+    audio_generation_service: CannedAudioService = Depends(Provide[Container.canned_audio_service]),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin import endpoint - protected with JWT"""

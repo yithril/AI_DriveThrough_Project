@@ -26,16 +26,6 @@ class Container(containers.DeclarativeContainer):
     validation_service = providers.Singleton("app.services.lightweight_validation_service.LightweightValidationService")
     order_intent_processor = providers.Singleton("app.services.ai_agent.OrderIntentProcessor")
     
-    # Audio pipeline service (orchestrates other services)
-    audio_pipeline_service = providers.Singleton(
-        "app.services.audio_pipeline_service.AudioPipelineService",
-        speech_service=speech_service,
-        validation_service=validation_service,
-        order_intent_processor=order_intent_processor,
-        file_storage_service=file_storage_service,
-        order_service=order_service
-    )
-    
     # Redis service with lifecycle management
     redis_service = providers.Singleton("app.services.redis_service.RedisService")
     
@@ -57,6 +47,22 @@ class Container(containers.DeclarativeContainer):
         endpoint_url=config.AWS_ENDPOINT_URL
     )
     
+    # Order service (only depends on Redis, gets session from API boundary)
+    order_service = providers.Factory(
+        "app.services.order_service.OrderService",
+        redis_service=redis_service
+    )
+    
+    # Audio pipeline service (orchestrates other services)
+    audio_pipeline_service = providers.Singleton(
+        "app.services.audio_pipeline_service.AudioPipelineService",
+        speech_service=speech_service,
+        validation_service=validation_service,
+        order_intent_processor=order_intent_processor,
+        file_storage_service=file_storage_service,
+        order_service=order_service
+    )
+    
     # Canned audio service (depends on file storage and TTS)
     canned_audio_service = providers.Singleton(
         "app.services.canned_audio_service.CannedAudioService",
@@ -64,13 +70,9 @@ class Container(containers.DeclarativeContainer):
         tts_service=tts_service
     )
     
-    # Repositories will be created by services with the database session from FastAPI DI
-    
-    # Order service (only depends on Redis, gets session from API boundary)
-    order_service = providers.Factory(
-        "app.services.order_service.OrderService",
-        redis_service=redis_service
-    )
+    # Import services
+    excel_import_service = providers.Singleton("app.services.excel_import_service.ExcelImportService")
+    restaurant_import_service = providers.Singleton("app.services.restaurant_import_service.RestaurantImportService")
 
     def init_resources(self):
         """Initialize resources that need startup setup"""
