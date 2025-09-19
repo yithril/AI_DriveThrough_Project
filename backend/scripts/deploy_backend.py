@@ -32,11 +32,15 @@ def get_aws_account_id():
         return None
 
 def build_docker_image():
-    """Build the Docker image"""
-    print("📦 Building Docker image...")
+    """Build the Docker image using buildx for multi-stage support"""
+    print("📦 Building Docker image with buildx...")
     try:
-        result = subprocess.run(["docker", "build", "-t", "ai-drivethru-backend", "."], 
-                               check=True, cwd=Path(__file__).parent.parent)
+        result = subprocess.run([
+            "docker", "buildx", "build", 
+            "--platform", "linux/amd64",
+            "-t", "ai-drivethru-backend", 
+            "."
+        ], check=True, cwd=Path(__file__).parent.parent)
         print("✅ Docker image built successfully")
         return True
     except subprocess.CalledProcessError as e:

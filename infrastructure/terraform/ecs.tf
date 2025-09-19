@@ -37,7 +37,7 @@ resource "aws_ecs_task_definition" "backend" {
       environment = [
         {
           name  = "DATABASE_URL"
-          value = "postgresql://postgres:${random_password.db_password.result}@${aws_db_instance.main.endpoint}:5432/ai_drivethru"
+          value = "postgresql://postgres:${random_password.db_password.result}@${aws_db_instance.main.endpoint}/ai_drivethru"
         },
         {
           name  = "REDIS_URL"
