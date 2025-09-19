@@ -565,30 +565,10 @@ def main():
             action="store_true",
             help="Skip canned audio generation"
         )
-        parser.add_argument(
-            "--env",
-            choices=["dev", "prod"],
-            default="dev",
-            help="Environment: dev (local) or prod (AWS)"
-        )
-        parser.add_argument(
-            "--database-url",
-            help="Production database URL (required for --env prod)"
-        )
-        
         args = parser.parse_args()
         
-        # Handle environment selection
-        if args.env == "prod":
-            if not args.database_url:
-                print("❌ Error: --database-url is required for production environment")
-                print("Example: --database-url 'postgresql://user:pass@host:5432/db'")
-                sys.exit(1)
-            # Set production database URL
-            os.environ["DATABASE_URL"] = args.database_url
-            print(f"🔗 Using production database: {args.database_url[:20]}...")
-        else:
-            print("🏠 Using development environment (local .env file)")
+        # Always use production database from environment variables
+        print("🔗 Using production database from environment variables")
         
         # Convert relative paths to absolute
         excel_path = os.path.abspath(args.excel_file)

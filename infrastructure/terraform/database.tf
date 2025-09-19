@@ -34,7 +34,7 @@ resource "aws_db_instance" "main" {
   # Network
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.rds.id]
-  publicly_accessible    = false
+  publicly_accessible    = false  # Back to private for security
 
   # Backup
   backup_retention_period = 7

@@ -14,13 +14,14 @@ class Settings:
     # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     
-    # JWT (removed for demo - no authentication needed)
-    # JWT_SECRET: str = os.getenv("JWT_SECRET", "")
-    # JWT_ALGORITHM: str = "HS256"
-    # JWT_EXPIRE_MINUTES: int = 30
+    # JWT for admin authentication
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "your-jwt-secret-key-here")
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 60
     
-    # NextAuth (removed for demo - no authentication needed)
-    # NEXTAUTH_SECRET: str = os.getenv("NEXTAUTH_SECRET", "")
+    # Admin credentials
+    ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin123")
     
     # Redis
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")

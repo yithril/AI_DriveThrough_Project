@@ -10,7 +10,7 @@ import uvicorn
 
 from app.core.container import Container
 from app.core.logging import setup_logging, get_logger
-from app.api import restaurants, ai, sessions
+from app.api import restaurants, ai, sessions, admin
 
 # Set up logging
 logger = setup_logging()
@@ -29,7 +29,7 @@ container.config.from_dict({
 })
 
 # Wire the dependency injection container with the API modules
-container.wire(modules=["app.api.sessions", "app.api.ai"])
+container.wire(modules=["app.api.sessions", "app.api.ai", "app.api.admin"])
 
 # Initialize resources (connects to Redis)
 container.init_resources()
@@ -56,6 +56,7 @@ app.add_middleware(
 app.include_router(restaurants.router)
 app.include_router(ai.router)
 app.include_router(sessions.router)
+app.include_router(admin.router)
 
 # Container is now managed by the lifespan context manager
 
