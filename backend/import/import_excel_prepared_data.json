@@ -46,121 +46,141 @@
       "name": "Beef Patty",
       "description": "Fresh Beef Patty",
       "allergen_type": null,
-      "is_allergen": false
+      "is_allergen": false,
+      "unit_cost": 0.01
     },
     {
       "name": "Burger Bun",
       "description": "Fresh Beef Patty",
       "allergen_type": "Gluten",
-      "is_allergen": true
+      "is_allergen": true,
+      "unit_cost": 0.01
     },
     {
       "name": "Cheese Slice",
       "description": "Fresh Beef Patty",
       "allergen_type": "Dairy",
-      "is_allergen": true
+      "is_allergen": true,
+      "unit_cost": 0.01
     },
     {
       "name": "Lettuce",
       "description": "Fresh Beef Patty",
       "allergen_type": null,
-      "is_allergen": false
+      "is_allergen": false,
+      "unit_cost": 0.0
     },
     {
       "name": "Tomato",
       "description": "Fresh Beef Patty",
       "allergen_type": null,
-      "is_allergen": false
+      "is_allergen": false,
+      "unit_cost": 0.0
     },
     {
       "name": "Onion",
       "description": "Fresh Beef Patty",
       "allergen_type": null,
-      "is_allergen": false
+      "is_allergen": false,
+      "unit_cost": 0.0
     },
     {
       "name": "Quantum Sauce",
       "description": "Fresh Beef Patty",
       "allergen_type": null,
-      "is_allergen": false
+      "is_allergen": false,
+      "unit_cost": 0.0
     },
     {
       "name": "Chicken Patty",
       "description": "Fresh Beef Patty",
       "allergen_type": null,
-      "is_allergen": false
+      "is_allergen": false,
+      "unit_cost": 0.01
     },
     {
       "name": "Tortilla Wrap",
       "description": "Fresh Beef Patty",
       "allergen_type": "Gluten",
-      "is_allergen": true
+      "is_allergen": true,
+      "unit_cost": 0.01
     },
     {
       "name": "Veggie Mix",
       "description": "Fresh Beef Patty",
       "allergen_type": null,
-      "is_allergen": false
+      "is_allergen": false,
+      "unit_cost": 0.0
     },
     {
       "name": "Meteor Sauce",
       "description": "Fresh Beef Patty",
       "allergen_type": null,
-      "is_allergen": false
+      "is_allergen": false,
+      "unit_cost": 0.0
     },
     {
       "name": "Potato Fries",
       "description": "Fresh Beef Patty",
       "allergen_type": null,
-      "is_allergen": false
+      "is_allergen": false,
+      "unit_cost": 0.01
     },
     {
       "name": "Onion Rings Batter",
       "description": "Fresh Beef Patty",
       "allergen_type": "Gluten",
-      "is_allergen": true
+      "is_allergen": true,
+      "unit_cost": 0.01
     },
     {
       "name": "Nuggets Batter",
       "description": "Fresh Beef Patty",
       "allergen_type": "Gluten",
-      "is_allergen": true
+      "is_allergen": true,
+      "unit_cost": 0.01
     },
     {
       "name": "Salad Greens",
       "description": "Fresh Beef Patty",
       "allergen_type": null,
-      "is_allergen": false
+      "is_allergen": false,
+      "unit_cost": 0.0
     },
     {
       "name": "Starlight Dressing",
       "description": "Fresh Beef Patty",
       "allergen_type": "Dairy",
-      "is_allergen": true
+      "is_allergen": true,
+      "unit_cost": 0.0
     },
     {
       "name": "Ice Cream",
       "description": "Fresh Beef Patty",
       "allergen_type": "Dairy",
-      "is_allergen": true
+      "is_allergen": true,
+      "unit_cost": 0.01
     },
     {
       "name": "Cookie Dough",
       "description": "Fresh Beef Patty",
       "allergen_type": "Gluten",
-      "is_allergen": true
+      "is_allergen": true,
+      "unit_cost": 0.01
     },
     {
       "name": "Brownie Mix",
       "description": "Fresh Beef Patty",
       "allergen_type": "Gluten",
-      "is_allergen": true
+      "is_allergen": true,
+      "unit_cost": 0.01
     },
     {
       "name": "Berry Filling",
       "description": "Fresh Beef Patty",
       "allergen_type": null,
-      "is_allergen": false
+      "is_allergen": false,
+      "unit_cost": 0.01
     }
   ],
   "menu_items": [
@@ -390,241 +410,321 @@
       "menu_item_name": "Quantum Cheeseburger",
       "ingredient_name": "Beef Patty",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Quantum Cheeseburger",
       "ingredient_name": "Burger Bun",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Quantum Cheeseburger",
       "ingredient_name": "Cheese Slice",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "slice",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Quantum Cheeseburger",
       "ingredient_name": "Lettuce",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Quantum Cheeseburger",
       "ingredient_name": "Tomato",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "slice",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Quantum Cheeseburger",
       "ingredient_name": "Quantum Sauce",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Neon Double Burger",
       "ingredient_name": "Beef Patty",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Neon Double Burger",
       "ingredient_name": "Beef Patty",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Neon Double Burger",
       "ingredient_name": "Burger Bun",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Neon Double Burger",
       "ingredient_name": "Cheese Slice",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Veggie Nebula Wrap",
       "ingredient_name": "Tortilla Wrap",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Veggie Nebula Wrap",
       "ingredient_name": "Veggie Mix",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Spicy Meteor Chicken",
       "ingredient_name": "Chicken Patty",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Spicy Meteor Chicken",
       "ingredient_name": "Burger Bun",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Spicy Meteor Chicken",
       "ingredient_name": "Meteor Sauce",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Galactic Fries",
       "ingredient_name": "Potato Fries",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Cosmic Onion Rings",
       "ingredient_name": "Onion Rings Batter",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Astro Nuggets",
       "ingredient_name": "Nuggets Batter",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Starlight Salad",
       "ingredient_name": "Salad Greens",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Starlight Salad",
       "ingredient_name": "Starlight Dressing",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Milky Way Shake",
       "ingredient_name": "Ice Cream",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Asteroid Cookie",
       "ingredient_name": "Cookie Dough",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Black Hole Brownie",
       "ingredient_name": "Brownie Mix",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Nova Sundae",
       "ingredient_name": "Ice Cream",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Galaxy Pie",
       "ingredient_name": "Berry Filling",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Burger Combo Meal",
       "ingredient_name": "Beef Patty",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Burger Combo Meal",
       "ingredient_name": "Burger Bun",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Burger Combo Meal",
       "ingredient_name": "Cheese Slice",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Burger Combo Meal",
       "ingredient_name": "Potato Fries",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Burger Combo Meal",
       "ingredient_name": "Quantum Sauce",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Chicken Combo Meal",
       "ingredient_name": "Chicken Patty",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Chicken Combo Meal",
       "ingredient_name": "Burger Bun",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Chicken Combo Meal",
       "ingredient_name": "Meteor Sauce",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Chicken Combo Meal",
       "ingredient_name": "Nuggets Batter",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Veggie Combo Meal",
       "ingredient_name": "Tortilla Wrap",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Veggie Combo Meal",
       "ingredient_name": "Veggie Mix",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Veggie Combo Meal",
       "ingredient_name": "Salad Greens",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Veggie Combo Meal",
       "ingredient_name": "Starlight Dressing",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Family Pack",
       "ingredient_name": "Beef Patty",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     },
     {
       "menu_item_name": "Family Pack",
       "ingredient_name": "Burger Bun",
       "quantity": 1.0,
-      "is_required": true
+      "unit": "piece",
+      "additional_cost": 0.0,
+      "is_optional": false
     }
   ],
   "inventory": [

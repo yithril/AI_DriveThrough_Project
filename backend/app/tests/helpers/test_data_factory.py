@@ -99,6 +99,67 @@ class TestDataFactory:
         }
     
     @staticmethod
+    def create_ingredient(
+        id: int = 1,
+        name: str = "Lettuce",
+        description: str = "Fresh lettuce",
+        allergen_type: Optional[str] = None,
+        is_allergen: bool = False,
+        unit_cost: float = 0.0,
+        restaurant_id: int = 1
+    ) -> Dict[str, Any]:
+        """Create a test ingredient"""
+        return {
+            "id": id,
+            "name": name,
+            "description": description,
+            "allergen_type": allergen_type,
+            "is_allergen": is_allergen,
+            "unit_cost": unit_cost,
+            "restaurant_id": restaurant_id
+        }
+    
+    @staticmethod
+    def create_menu_item_ingredient(
+        id: int = 1,
+        menu_item_id: int = 1,
+        ingredient_id: int = 1,
+        quantity: float = 1.0,
+        unit: str = "piece",
+        additional_cost: float = 0.0
+    ) -> Dict[str, Any]:
+        """Create a test menu item ingredient relationship"""
+        return {
+            "id": id,
+            "menu_item_id": menu_item_id,
+            "ingredient_id": ingredient_id,
+            "quantity": quantity,
+            "unit": unit,
+            "additional_cost": additional_cost
+        }
+    
+    @staticmethod
+    def create_inventory(
+        id: int = 1,
+        ingredient_id: int = 1,
+        current_stock: float = 100.0,
+        unit: str = "piece",
+        is_low_stock: bool = False,
+        low_stock_threshold: float = 10.0,
+        restaurant_id: int = 1
+    ) -> Dict[str, Any]:
+        """Create a test inventory record"""
+        return {
+            "id": id,
+            "ingredient_id": ingredient_id,
+            "current_stock": current_stock,
+            "unit": unit,
+            "is_low_stock": is_low_stock,
+            "low_stock_threshold": low_stock_threshold,
+            "restaurant_id": restaurant_id
+        }
+    
+    @staticmethod
     def create_order_scenarios() -> Dict[str, Dict[str, Any]]:
         """Create different order scenarios for testing"""
         return {
@@ -116,5 +177,17 @@ class TestDataFactory:
                 **TestDataFactory.create_order_with_items(),
                 "status": "CONFIRMED",
                 "confirmed_at": datetime.now().isoformat()
-            }
+            },
+            "large_order": TestDataFactory.create_order_with_items(
+                items=[
+                    TestDataFactory.create_order_item(f"item_{i}", i, 5, 10.0) 
+                    for i in range(1, 11)  # 10 items, 5 quantity each = 50 total items
+                ]
+            ),
+            "high_value_order": TestDataFactory.create_order_with_items(
+                items=[
+                    TestDataFactory.create_order_item("item_1", 1, 1, 150.0),  # $150
+                    TestDataFactory.create_order_item("item_2", 2, 1, 40.0)    # $40
+                ]
+            )
         }

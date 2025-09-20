@@ -41,6 +41,12 @@ class MenuItemIngredient(Base):
         default=False,
         comment="Whether this ingredient is optional (e.g., 'extra cheese')"
     )
+    additional_cost = Column(
+        Numeric(10, 2), 
+        nullable=False,
+        default=0.0,
+        comment="Additional cost when adding extra of this ingredient"
+    )
     created_at = Column(
         DateTime(timezone=True), 
         server_default=func.now(),
@@ -71,6 +77,14 @@ class MenuItemIngredient(Base):
             "length(unit) <= 20", 
             name="ck_menu_item_ingredient_unit_max_length"
         ),
+        CheckConstraint(
+            "additional_cost >= 0", 
+            name="ck_menu_item_ingredient_additional_cost_positive"
+        ),
+        CheckConstraint(
+            "additional_cost <= 999999.99", 
+            name="ck_menu_item_ingredient_additional_cost_max"
+        ),
     )
     
     # Relationships
@@ -89,6 +103,7 @@ class MenuItemIngredient(Base):
             "quantity": float(self.quantity) if self.quantity else 0.0,
             "unit": self.unit,
             "is_optional": self.is_optional,
+            "additional_cost": float(self.additional_cost) if self.additional_cost else 0.0,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "ingredient": self.ingredient.to_dict() if self.ingredient else None
         }

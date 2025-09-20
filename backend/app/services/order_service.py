@@ -9,6 +9,7 @@ from ..models.order_item import OrderItem
 from ..core.unit_of_work import UnitOfWork
 from .order_validator import OrderValidator
 from .order_session_interface import OrderSessionInterface
+from .customization_validation_service import CustomizationValidationService
 from ..constants.audio_phrases import AudioPhraseConstants, AudioPhraseType
 from ..dto.order_result import OrderResult, OrderResultStatus
 from ..core.config import settings
@@ -26,9 +27,10 @@ class OrderService:
     Uses repositories for data access and validator for business logic
     """
     
-    def __init__(self, order_session_service: OrderSessionInterface):
+    def __init__(self, order_session_service: OrderSessionInterface, customization_validator: CustomizationValidationService):
         # Business logic layer uses OrderSessionService for all storage operations
         self.storage = order_session_service
+        self.customization_validator = customization_validator
     
     
     async def handle_new_car(self, db: AsyncSession, restaurant_id: int, customer_name: Optional[str] = None) -> OrderResult:
@@ -476,7 +478,8 @@ class OrderService:
         menu_item_id: int, 
         quantity: int, 
         customizations: Optional[List[str]] = None, 
-        special_instructions: Optional[str] = None
+        special_instructions: Optional[str] = None,
+        size: Optional[str] = None
     ) -> OrderResult:
         """
         Add item to order - called by AddItemCommand
@@ -489,9 +492,10 @@ class OrderService:
             quantity: Quantity to add
             customizations: List of modifiers/customizations
             special_instructions: Special cooking instructions
+            size: Item size (e.g., "Large", "Small")
             
         Returns:
-            OrderResult: Result with order_item data for command success message
+            OrderResult: Result with order_item data and comprehensive message
         """
         try:
             # 1. Get menu item details from database
@@ -514,38 +518,74 @@ class OrderService:
                     "updated_at": datetime.now().isoformat()
                 }
             
-            # 3. Create order item with unique ID
+            # 3. Validate customizations if provided
+            extra_cost = 0.0
+            if customizations:
+                # Get restaurant_id from menu item details
+                restaurant_id = menu_item_details.get("restaurant_id")
+                if not restaurant_id:
+                    return OrderResult.error("Cannot validate customizations - restaurant ID not found")
+                
+                # Create UnitOfWork for validation
+                uow = UnitOfWork(db)
+                
+                # Validate customizations
+                validation_results = await self.customization_validator.validate_customizations(
+                    menu_item_id, customizations, restaurant_id, uow
+                )
+                
+                # Check for validation errors
+                validation_errors = []
+                for customization, result in validation_results.items():
+                    if not result.is_valid:
+                        validation_errors.extend(result.errors)
+                    else:
+                        extra_cost += result.extra_cost
+                
+                if validation_errors:
+                    return OrderResult.error(f"Invalid customizations: {'; '.join(validation_errors)}")
+            
+            # 4. Create order item with unique ID
             order_item_id = await self._generate_order_item_id()
+            base_price = menu_item_details["price"]
+            total_item_price = (base_price + extra_cost) * quantity
+            
             order_item = {
                 "id": order_item_id,
                 "menu_item_id": menu_item_id,
                 "menu_item": menu_item_details,
                 "quantity": quantity,
-                "unit_price": menu_item_details["price"],
-                "total_price": menu_item_details["price"] * quantity,
+                "unit_price": base_price,
+                "extra_cost": extra_cost,
+                "total_price": total_item_price,
                 "customizations": customizations or [],
                 "special_instructions": special_instructions,
                 "created_at": datetime.now().isoformat()
             }
             
-            # 4. Add to order items list
+            # 5. Add to order items list
             order_data["items"].append(order_item)
             
-            # 5. Recalculate totals (subtotal, tax, total)
+            # 6. Recalculate totals (subtotal, tax, total)
             await self._recalculate_order_totals(order_data)
             
-            # 6. Update timestamp
+            # 7. Update timestamp
             order_data["updated_at"] = datetime.now().isoformat()
             
-            # 7. Save updated order to storage (Redis/PostgreSQL)
+            # 8. Save updated order to storage (Redis/PostgreSQL)
             save_success = await self.storage.update_order(db, order_id, order_data, ttl=1800)
             if not save_success:
                 return OrderResult.error("Failed to save updated order")
             
-            # 8. Return OrderResult with order_item data
+            # 9. Generate comprehensive message
+            message = self._generate_add_item_message(
+                quantity, menu_item_details, customizations, size, special_instructions
+            )
+            
+            # 10. Return OrderResult with order_item data
             logger.info(f"Added {quantity}x {menu_item_details['name']} to order {order_id}")
             return OrderResult.success(
-                f"Added {quantity}x {menu_item_details['name']} to order",
+                message,
                 data={
                     "order_item": order_item,
                     "order": order_data
@@ -1005,3 +1045,46 @@ class OrderService:
         timestamp = int(time.time() * 1000)  # milliseconds
         random_part = random.randint(1000, 9999)
         return f"item_{timestamp}_{random_part}"
+    
+    def _generate_add_item_message(
+        self, 
+        quantity: int, 
+        menu_item_details: Dict[str, Any], 
+        customizations: Optional[List[str]] = None,
+        size: Optional[str] = None,
+        special_instructions: Optional[str] = None
+    ) -> str:
+        """
+        Generate comprehensive message for adding item to order
+        
+        Args:
+            quantity: Quantity being added
+            menu_item_details: Menu item details from database
+            customizations: List of customizations/modifiers
+            size: Item size (e.g., "Large", "Small")
+            special_instructions: Special cooking instructions
+            
+        Returns:
+            Formatted message string
+        """
+        item_name = menu_item_details.get("name", "item")
+        
+        # Build size text (avoid redundancy if size is already in item name)
+        size_text = ""
+        if size and size.lower() not in item_name.lower():
+            size_text = f" {size}"
+        
+        # Build customizations text
+        customizations_text = ""
+        if customizations:
+            customizations_text = f" ({', '.join(customizations)})"
+        
+        # Build special instructions text
+        special_text = ""
+        if special_instructions:
+            special_text = f" - {special_instructions}"
+        
+        # Construct the message
+        message = f"Added {quantity}x {item_name}{size_text}{customizations_text} to order{special_text}"
+        
+        return message

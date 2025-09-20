@@ -12,6 +12,7 @@ from ..models.order_item import OrderItem
 from ..core.unit_of_work import UnitOfWork
 from ..core.config import settings
 from ..dto.order_result import OrderResult, OrderResultStatus
+from ..constants.order_limits import OrderLimits
 
 
 class OrderValidator:
@@ -31,7 +32,8 @@ class OrderValidator:
         menu_item_id: int, 
         quantity: int,
         customizations: Optional[List[str]] = None,
-        current_order: Optional[Order] = None
+        current_order: Optional[Order] = None,
+        business_scenario: str = "default"
     ) -> OrderResult:
         """
         Validate adding an item to an order
@@ -53,8 +55,11 @@ class OrderValidator:
         if quantity <= 0:
             errors.append("Quantity must be greater than 0")
         
-        if quantity > settings.MAX_QUANTITY_PER_ITEM:
-            errors.append(f"Quantity cannot exceed {settings.MAX_QUANTITY_PER_ITEM} per item")
+        if quantity < OrderLimits.MIN_QUANTITY_PER_ITEM:
+            errors.append(f"Quantity must be at least {OrderLimits.MIN_QUANTITY_PER_ITEM}")
+        
+        if quantity > OrderLimits.MAX_QUANTITY_PER_ITEM:
+            errors.append(f"Quantity cannot exceed {OrderLimits.MAX_QUANTITY_PER_ITEM} per item")
         
         if errors:
             return OrderResult.error("Invalid quantity", errors)
@@ -72,14 +77,14 @@ class OrderValidator:
         
         # 3. Validate customizations if enabled
         if settings.ENABLE_CUSTOMIZATION_VALIDATION and customizations:
-            customization_result = await self._validate_customizations(menu_item_id, customizations)
+            customization_result = await self._validate_customizations(uow, menu_item_id, customizations)
             if customization_result.is_error:
                 return customization_result
             warnings.extend(customization_result.warnings)
         
         # 4. Check inventory if enabled
         if settings.ENABLE_INVENTORY_CHECKING:
-            inventory_result = await self._validate_inventory(menu_item_id, quantity)
+            inventory_result = await self._validate_inventory(uow, menu_item_id, quantity)
             if inventory_result.is_error:
                 return inventory_result
             warnings.extend(inventory_result.warnings)
@@ -144,7 +149,7 @@ class OrderValidator:
             data={"item_count": item_count}
         )
     
-    async def _validate_customizations(self, menu_item_id: int, customizations: List[str]) -> OrderResult:
+    async def _validate_customizations(self, uow: UnitOfWork, menu_item_id: int, customizations: List[str]) -> OrderResult:
         """
         Validate menu item customizations
         
@@ -160,7 +165,7 @@ class OrderValidator:
         
         # Get menu item ingredients to validate customizations
         ingredients = await uow.menu_item_ingredients.get_by_menu_item(menu_item_id)
-        ingredient_names = [ing.menu_item.name.lower() for ing in ingredients if ing.menu_item]
+        ingredient_names = [ing.ingredient.name.lower() for ing in ingredients if ing.ingredient]
         
         for customization in customizations:
             customization_lower = customization.lower()
@@ -185,7 +190,7 @@ class OrderValidator:
         
         return OrderResult.success("Customizations validated successfully")
     
-    async def _validate_inventory(self, menu_item_id: int, quantity: int) -> OrderResult:
+    async def _validate_inventory(self, uow: UnitOfWork, menu_item_id: int, quantity: int) -> OrderResult:
         """
         Validate inventory availability for menu item
         
@@ -261,13 +266,13 @@ class OrderValidator:
         
         # Check total items limit
         current_item_count = sum(item.quantity for item in current_order.order_items)
-        if current_item_count + quantity > settings.MAX_ITEMS_PER_ORDER:
-            errors.append(f"Order would exceed maximum of {settings.MAX_ITEMS_PER_ORDER} items")
+        if current_item_count + quantity > OrderLimits.MAX_ITEMS_PER_ORDER:
+            errors.append(f"Order would exceed maximum of {OrderLimits.MAX_ITEMS_PER_ORDER} items")
         
         # Check order total limit
         new_item_total = float(menu_item.price) * quantity
-        if current_order.total_amount + new_item_total > settings.MAX_ORDER_TOTAL:
-            errors.append(f"Order total would exceed maximum of ${settings.MAX_ORDER_TOTAL}")
+        if current_order.total_amount + new_item_total > OrderLimits.MAX_ORDER_TOTAL:
+            errors.append(f"Order total would exceed maximum of ${OrderLimits.MAX_ORDER_TOTAL}")
         
         if errors:
             return OrderResult.error("Order limits exceeded", errors)

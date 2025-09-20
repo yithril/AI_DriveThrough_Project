@@ -67,15 +67,9 @@ class AddItemCommand(BaseCommand):
                 menu_item_id=self.menu_item_id,
                 quantity=self.quantity,
                 customizations=self.modifiers,  # Pass modifiers as customizations for now
-                special_instructions=self.special_instructions
+                special_instructions=self.special_instructions,
+                size=self.size  # Pass size to OrderService for message generation
             )
-            
-            # Enhance message for AI
-            if result.is_success:
-                menu_item_name = result.data.get("order_item", {}).get("menu_item", {}).get("name", "item")
-                size_info = f" {self.size}" if self.size else ""
-                modifiers_info = f" ({', '.join(self.modifiers)})" if self.modifiers else ""
-                result.message = f"Added {self.quantity}x {menu_item_name}{size_info}{modifiers_info} to order"
             
             return result
             

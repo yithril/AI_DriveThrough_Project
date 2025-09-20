@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.order_service import OrderService
 from app.dto.order_result import OrderResult
 from app.tests.helpers.test_data_factory import TestDataFactory
-from app.tests.helpers.mock_services import MockOrderSessionService, MockUnitOfWork
+from app.tests.helpers.mock_services import MockOrderSessionService, MockUnitOfWork, MockContainer
 
 
 class TestOrderServiceCartOperations:
@@ -21,14 +21,19 @@ class TestOrderServiceCartOperations:
         return AsyncMock(spec=AsyncSession)
     
     @pytest.fixture
-    def mock_order_session_service(self):
-        """Mock OrderSessionService"""
-        return MockOrderSessionService()
+    def mock_container(self):
+        """Mock container with all services"""
+        return MockContainer()
     
     @pytest.fixture
-    def order_service(self, mock_order_session_service):
-        """Create OrderService with mocked dependencies"""
-        return OrderService(mock_order_session_service)
+    def order_service(self, mock_container):
+        """Get OrderService from mock container"""
+        return mock_container.get_order_service()
+    
+    @pytest.fixture
+    def mock_order_session_service(self, mock_container):
+        """Get mock OrderSessionService from container for test setup"""
+        return mock_container.get_mock_order_session_service()
     
     @pytest.mark.asyncio
     async def test_add_item_to_order_success(self, order_service, mock_db):
@@ -47,12 +52,13 @@ class TestOrderServiceCartOperations:
                 menu_item_id=menu_item_id,
                 quantity=quantity,
                 customizations=["no pickles"],
-                special_instructions="Extra crispy"
+                special_instructions="Extra crispy",
+                size="Large"
             )
         
         # Assert
         assert result.is_success
-        assert "Added 2x Test Burger to order" in result.message
+        assert "Added 2x Test Burger Large (no pickles) to order - Extra crispy" in result.message
         assert "order_item" in result.data
         assert result.data["order_item"]["quantity"] == 2
         assert result.data["order_item"]["customizations"] == ["no pickles"]

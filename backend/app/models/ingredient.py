@@ -2,7 +2,7 @@
 Ingredient model with validation
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, CheckConstraint
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, CheckConstraint, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..core.database import Base
@@ -40,6 +40,12 @@ class Ingredient(Base):
         nullable=True,
         comment="Type of allergen (nuts, dairy, gluten, etc.)"
     )
+    unit_cost = Column(
+        Numeric(10, 2), 
+        nullable=False,
+        default=0.0,
+        comment="Cost per unit of this ingredient (e.g., cost per slice of cheese)"
+    )
     created_at = Column(
         DateTime(timezone=True), 
         server_default=func.now(),
@@ -55,6 +61,14 @@ class Ingredient(Base):
         CheckConstraint(
             "length(description) >= 5 OR description IS NULL", 
             name="ck_ingredient_description_min_length"
+        ),
+        CheckConstraint(
+            "unit_cost >= 0", 
+            name="ck_ingredient_unit_cost_positive"
+        ),
+        CheckConstraint(
+            "unit_cost <= 999999.99", 
+            name="ck_ingredient_unit_cost_max"
         ),
         # Ensure unique ingredient names per restaurant
         CheckConstraint(
@@ -80,5 +94,6 @@ class Ingredient(Base):
             "restaurant_id": self.restaurant_id,
             "is_allergen": self.is_allergen,
             "allergen_type": self.allergen_type,
+            "unit_cost": float(self.unit_cost) if self.unit_cost else 0.0,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }

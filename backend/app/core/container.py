@@ -53,10 +53,16 @@ class Container(containers.DeclarativeContainer):
         redis_service=redis_service
     )
     
-    # Order service (depends on OrderSessionService)
+    # Customization validation service
+    customization_validator = providers.Singleton(
+        "app.services.customization_validation_service.CustomizationValidationService"
+    )
+    
+    # Order service (depends on OrderSessionService and CustomizationValidator)
     order_service = providers.Factory(
         "app.services.order_service.OrderService",
-        order_session_service=order_session_service
+        order_session_service=order_session_service,
+        customization_validator=customization_validator
     )
     
     # Audio pipeline service (orchestrates other services)

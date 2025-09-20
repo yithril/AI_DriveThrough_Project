@@ -8,7 +8,7 @@ from .base_command import BaseCommand
 from .command_context import CommandContext
 from ..services.order_session_interface import OrderSessionInterface
 from ..services.order_service import OrderService
-from ..dto.order_result import OrderResult
+from ..dto.order_result import OrderResult, CommandBatchResult, ErrorCode
 
 
 class CommandInvoker:
@@ -77,7 +77,10 @@ class CommandInvoker:
             
         except Exception as e:
             # Track failed commands too
-            error_result = OrderResult.error(f"Command execution failed: {str(e)}")
+            error_result = OrderResult.system_error(
+                f"Command execution failed: {str(e)}",
+                error_code=ErrorCode.INTERNAL_ERROR
+            )
             self.command_history.append({
                 "command": command.to_dict(),
                 "result": error_result.to_dict(),
@@ -87,7 +90,7 @@ class CommandInvoker:
             
             return error_result
     
-    async def execute_multiple_commands(self, commands: List[BaseCommand]) -> List[OrderResult]:
+    async def execute_multiple_commands(self, commands: List[BaseCommand]) -> CommandBatchResult:
         """
         Execute multiple commands in sequence
         
@@ -95,20 +98,28 @@ class CommandInvoker:
             commands: List of commands to execute
             
         Returns:
-            List[OrderResult]: Results of command executions
+            CommandBatchResult: Aggregated results with follow-up recommendations
         """
         results = []
+        command_names = []
         
-        for command in commands:
-            result = await self.execute_command(command)
-            results.append(result)
-            
-            # Stop execution if any command fails (optional behavior)
-            # You might want to continue or stop based on your needs
-            if result.is_error:
-                break
+        for index, command in enumerate(commands):
+            try:
+                # Execute command with index context for better error reporting
+                result = await self.execute_command(command)
+                results.append(result)
+                command_names.append(command.command_name)
+            except Exception as e:
+                # Wrap each command execution in try/except so one failure doesn't crash the loop
+                error_result = OrderResult.system_error(
+                    f"Command execution failed: {str(e)}",
+                    error_code=ErrorCode.INTERNAL_ERROR
+                )
+                results.append(error_result)
+                command_names.append(command.command_name)
         
-        return results
+        # Create aggregated batch result
+        return CommandBatchResult.from_results(results, command_names)
     
     def get_command_history(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """
