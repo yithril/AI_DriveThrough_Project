@@ -1,31 +1,12 @@
 import { useState } from 'react'
-import { useSession, getCsrfToken } from 'next-auth/react'
-import { useRouter } from 'next/router'
-import { useEffect } from 'react'
 
 export default function AdminImport() {
-  const { data: session, status } = useSession()
-  const router = useRouter()
   const [excelFile, setExcelFile] = useState<File | null>(null)
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [overwrite, setOverwrite] = useState(false)
   const [generateAudio, setGenerateAudio] = useState(true)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState('')
-
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/admin/login')
-    }
-  }, [status, router])
-
-  if (status === 'loading') {
-    return <div className="p-8">Loading...</div>
-  }
-
-  if (!session) {
-    return null
-  }
 
   const handleImageFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -40,12 +21,6 @@ export default function AdminImport() {
     setResult('')
 
     try {
-      // Get CSRF token
-      const csrfToken = await getCsrfToken()
-      if (!csrfToken) {
-        throw new Error('No CSRF token')
-      }
-
       // Create form data
       const formData = new FormData()
       formData.append('excel_file', excelFile)
@@ -64,16 +39,33 @@ export default function AdminImport() {
       // Submit to backend
       const response = await fetch(`${apiBaseUrl}/admin/import`, {
         method: 'POST',
-        headers: {
-          'X-XSRF-Token': csrfToken,
-        },
         body: formData,
       })
 
       const data = await response.json()
 
       if (response.ok) {
-        setResult(`✅ Import successful! ${JSON.stringify(data, null, 2)}`)
+        // Extract restaurant ID from response
+        const restaurantId = data.restaurant_id || data.data?.restaurant_id
+        const restaurantName = data.restaurant_name || data.data?.restaurant_name
+        
+        let resultMessage = `✅ Import successful!\n`
+        if (restaurantId) {
+          resultMessage += `\n🏪 Restaurant ID: ${restaurantId}\n`
+          resultMessage += `📝 Restaurant Name: ${restaurantName || 'Unknown'}\n`
+          resultMessage += `\n📋 Frontend Configuration:\n`
+          resultMessage += `Set NEXT_PUBLIC_RESTAURANT_ID=${restaurantId} in your environment variables\n`
+        }
+        
+        if (data.data) {
+          resultMessage += `\n📊 Import Summary:\n`
+          resultMessage += `- Categories: ${data.data.categories_created || 0}\n`
+          resultMessage += `- Menu Items: ${data.data.menu_items_created || 0}\n`
+          resultMessage += `- Ingredients: ${data.data.ingredients_created || 0}\n`
+          resultMessage += `- Tags: ${data.data.tags_created || 0}\n`
+        }
+        
+        setResult(resultMessage)
       } else {
         setResult(`❌ Import failed: ${data.detail || 'Unknown error'}`)
       }
