@@ -30,8 +30,9 @@ export default function MenuItemCard({ item, theme, restaurantId }: MenuItemCard
       return imageUrl;
     }
     
-    // Serve images from LocalStack S3-compatible storage
-    return `http://localhost:4566/ai-drivethru-files/restaurants/${restaurantId}/images/${imageUrl}`;
+    // Get S3 bucket URL from environment variable
+    const s3BucketUrl = process.env.NEXT_PUBLIC_S3_BUCKET_URL || 'https://ai-drivethru-files.s3.us-east-2.amazonaws.com';
+    return `${s3BucketUrl}/restaurants/${restaurantId}/images/${imageUrl}`;
   };
 
   const fullImageUrl = getImageUrl(item.image_url || null, restaurantId || 20);

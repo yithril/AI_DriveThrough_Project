@@ -111,6 +111,9 @@ resource "aws_ecs_service" "backend" {
   task_definition = aws_ecs_task_definition.backend.arn
   desired_count   = 1
   launch_type     = "FARGATE"
+  
+  # Enable ECS Exec for running commands inside containers
+  enable_execute_command = true
 
   network_configuration {
     subnets          = aws_subnet.public[*].id  # Use public subnets for direct access

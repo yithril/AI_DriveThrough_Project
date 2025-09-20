@@ -38,7 +38,8 @@ export default function CarControlComponent() {
       console.log('Sending request body:', requestBody);
       console.log('Stringified body:', JSON.stringify(requestBody));
       
-      const response = await fetch('http://localhost:8000/api/sessions/new-car', {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiBaseUrl}/api/sessions/new-car`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,7 +75,8 @@ export default function CarControlComponent() {
       setIsProcessing(true);
       try {
         // Call the backend API to handle next car
-        const response = await fetch('http://localhost:8000/api/sessions/next-car', {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+        const response = await fetch(`${apiBaseUrl}/api/sessions/next-car`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

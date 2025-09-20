@@ -36,9 +36,9 @@ resource "aws_s3_bucket_public_access_block" "main" {
   bucket = aws_s3_bucket.main.id
 
   block_public_acls       = true
-  block_public_policy     = true
+  block_public_policy     = false  # Allow public policy for images/audio
   ignore_public_acls      = true
-  restrict_public_buckets = true
+  restrict_public_buckets = false  # Allow public access for images/audio
 }
 
 # S3 Bucket CORS Configuration
@@ -70,4 +70,27 @@ resource "aws_s3_bucket_lifecycle_configuration" "main" {
       noncurrent_days = 30
     }
   }
+}
+
+# S3 Bucket Policy for Public Read Access to Images and Audio
+resource "aws_s3_bucket_policy" "main" {
+  bucket = aws_s3_bucket.main.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = [
+          "${aws_s3_bucket.main.arn}/restaurants/*/images/*",
+          "${aws_s3_bucket.main.arn}/restaurants/*/audio/*"
+        ]
+      }
+    ]
+  })
+
+  depends_on = [aws_s3_bucket_public_access_block.main]
 }

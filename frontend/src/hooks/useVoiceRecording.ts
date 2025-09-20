@@ -137,7 +137,8 @@ export function useAudioRecording(): AudioRecordingState & AudioRecordingActions
       console.log('Sending audio to backend...');
       
       // Send to backend
-      const response = await fetch('http://localhost:8000/api/ai/process-audio', {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiBaseUrl}/api/ai/process-audio`, {
         method: 'POST',
         body: formData,
         // Don't set Content-Type, let browser set it with boundary
