@@ -60,17 +60,21 @@ class MenuItemRepository(BaseRepository[MenuItem]):
         Returns:
             List[MenuItem]: List of available menu items for the category
         """
-        result = await self.db.execute(
-            select(MenuItem)
-            .where(
-                MenuItem.category_id == category_id,
-                MenuItem.is_available == True
+        try:
+            result = await self.db.execute(
+                select(MenuItem)
+                .where(
+                    MenuItem.category_id == category_id,
+                    MenuItem.is_available == True
+                )
+                .order_by(MenuItem.display_order)
+                .offset(skip)
+                .limit(limit)
             )
-            .order_by(MenuItem.display_order)
-            .offset(skip)
-            .limit(limit)
-        )
-        return result.scalars().all()
+            menu_items = result.scalars().all()
+            return menu_items
+        except Exception as e:
+            raise
     
     async def get_by_restaurant(self, restaurant_id: int, skip: int = 0, limit: int = 100) -> List[MenuItem]:
         """

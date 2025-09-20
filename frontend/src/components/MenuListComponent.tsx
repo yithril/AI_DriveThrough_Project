@@ -14,10 +14,10 @@ export default function MenuListComponent({ restaurant, menu }: MenuListComponen
   const { theme } = useTheme();
 
   return (
-    <div className="h-full">
+    <div className="h-full" style={{ background: 'transparent' }}>
 
       {/* Menu Categories */}
-      <div className="p-6 space-y-8">
+      <div className="p-6 space-y-8" style={{ background: 'transparent' }}>
         {menu.map((category) => (
           <div key={category.id} className="space-y-4">
             <div 

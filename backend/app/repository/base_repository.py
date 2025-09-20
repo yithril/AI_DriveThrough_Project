@@ -50,10 +50,14 @@ class BaseRepository(Generic[ModelType]):
         Returns:
             ModelType or None: Model instance if found
         """
-        result = await self.db.execute(
-            select(self.model).where(self.model.id == id)
-        )
-        return result.scalar_one_or_none()
+        try:
+            result = await self.db.execute(
+                select(self.model).where(self.model.id == id)
+            )
+            record = result.scalar_one_or_none()
+            return record
+        except Exception as e:
+            raise
     
     async def get_by_id_with_relations(self, id: int, relations: List[str]) -> Optional[ModelType]:
         """

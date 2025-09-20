@@ -300,15 +300,12 @@ class S3FileStorageService(FileStorageInterface):
                 file_id = str(uuid.uuid4())
                 s3_key = f"restaurants/{restaurant_id}/orders/{order_id}/audio/{file_id}{extension}"
             elif restaurant_id:
-                # Check if this is an image file based on content type
+                # Use original filename for both images and audio to maintain readability
+                file_id = str(uuid.uuid4())  # Still need file_id for metadata
                 if content_type and content_type.startswith('image/'):
-                    # For images, use the original filename to maintain readability
-                    file_id = str(uuid.uuid4())  # Still need file_id for metadata
                     s3_key = f"restaurants/{restaurant_id}/images/{file_name}"
                 else:
-                    # For other files, use UUID
-                    file_id = str(uuid.uuid4())
-                    s3_key = f"restaurants/{restaurant_id}/audio/{file_id}{extension}"
+                    s3_key = f"restaurants/{restaurant_id}/audio/{file_name}"
             else:
                 # Fallback to old structure with UUID
                 file_id = str(uuid.uuid4())

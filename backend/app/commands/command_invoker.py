@@ -5,6 +5,9 @@ Command invoker for executing AI commands
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from .base_command import BaseCommand
+from .command_context import CommandContext
+from ..services.order_session_interface import OrderSessionInterface
+from ..services.order_service import OrderService
 from ..dto.order_result import OrderResult
 
 
@@ -14,14 +17,26 @@ class CommandInvoker:
     Provides a clean interface for the AI to execute operations
     """
     
-    def __init__(self, db: AsyncSession):
+    def __init__(
+        self, 
+        db: AsyncSession, 
+        order_session_service: OrderSessionInterface,
+        order_service: OrderService,
+        restaurant_id: int
+    ):
         """
         Initialize command invoker
         
         Args:
             db: Database session for command execution
+            order_session_service: Order session service from DI container
+            order_service: Order service from DI container
+            restaurant_id: Restaurant ID for this invoker's context
         """
         self.db = db
+        self.order_session_service = order_session_service
+        self.order_service = order_service
+        self.restaurant_id = restaurant_id
         self.command_history: List[Dict[str, Any]] = []
     
     async def execute_command(self, command: BaseCommand) -> OrderResult:
@@ -35,8 +50,17 @@ class CommandInvoker:
             OrderResult: Result of command execution
         """
         try:
-            # Execute the command
-            result = await command.execute(self.db)
+            # Create command context scoped to the command's order/session
+            context = CommandContext(
+                order_session_service=self.order_session_service,
+                order_service=self.order_service,
+                restaurant_id=self.restaurant_id,
+                order_id=command.order_id,
+                session_id=None  # Could be set based on current session if needed
+            )
+            
+            # Execute the command with context
+            result = await command.execute(context, self.db)
             
             # Track command in history
             self.command_history.append({

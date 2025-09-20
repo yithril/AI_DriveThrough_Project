@@ -60,17 +60,21 @@ class CategoryRepository(BaseRepository[Category]):
         Returns:
             List[Category]: List of active categories for the restaurant
         """
-        result = await self.db.execute(
-            select(Category)
-            .where(
-                Category.restaurant_id == restaurant_id,
-                Category.is_active == True
+        try:
+            result = await self.db.execute(
+                select(Category)
+                .where(
+                    Category.restaurant_id == restaurant_id,
+                    Category.is_active == True
+                )
+                .order_by(Category.display_order)
+                .offset(skip)
+                .limit(limit)
             )
-            .order_by(Category.display_order)
-            .offset(skip)
-            .limit(limit)
-        )
-        return result.scalars().all()
+            categories = result.scalars().all()
+            return categories
+        except Exception as e:
+            raise
     
     async def get_category_with_menu_items(self, category_id: int) -> Optional[Category]:
         """

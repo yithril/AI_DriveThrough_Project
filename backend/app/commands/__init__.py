@@ -8,6 +8,7 @@ from .remove_item_command import RemoveItemCommand
 from .clear_order_command import ClearOrderCommand
 from .answer_question_command import AnswerQuestionCommand
 from .command_invoker import CommandInvoker
+from .command_context import CommandContext
 from .target_reference import TargetReference
 from .modify_item_command import ModifyItemCommand
 from .set_quantity_command import SetQuantityCommand
@@ -28,6 +29,7 @@ __all__ = [
     "ClearOrderCommand",
     "AnswerQuestionCommand",
     "CommandInvoker",
+    "CommandContext",
     "TargetReference",
     "ModifyItemCommand",
     "SetQuantityCommand",

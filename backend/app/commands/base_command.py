@@ -5,6 +5,7 @@ Base command abstract class for AI operations
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 from ..dto.order_result import OrderResult
+from .command_context import CommandContext
 
 
 class BaseCommand(ABC):
@@ -25,11 +26,12 @@ class BaseCommand(ABC):
         self.order_id = order_id
     
     @abstractmethod
-    async def execute(self, db) -> OrderResult:
+    async def execute(self, context: CommandContext, db) -> OrderResult:
         """
         Execute the command
         
         Args:
+            context: Command context providing scoped services
             db: Database session for command execution
             
         Returns:

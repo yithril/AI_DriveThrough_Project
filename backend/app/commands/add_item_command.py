@@ -5,6 +5,7 @@ Add item command for AI order operations
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from .base_command import BaseCommand
+from .command_context import CommandContext
 from ..dto.order_result import OrderResult
 from ..services.order_service import OrderService
 
@@ -48,23 +49,21 @@ class AddItemCommand(BaseCommand):
         self.modifiers = modifiers or []
         self.special_instructions = special_instructions
     
-    async def execute(self, db: AsyncSession) -> OrderResult:
+    async def execute(self, context: CommandContext, db: AsyncSession) -> OrderResult:
         """
         Execute the add item command
         
         Args:
+            context: Command context providing scoped services
             db: Database session
             
         Returns:
             OrderResult: Result of adding the item
         """
         try:
-            # Create order service
-            order_service = OrderService(db)
-            
-            # Add item to order
-            result = await order_service.add_item_to_order(
-                order_id=self.order_id,
+            # Add item to order using OrderService from context
+            result = await context.order_service.add_item_to_order(
+                order_id=context.get_order_id(),
                 menu_item_id=self.menu_item_id,
                 quantity=self.quantity,
                 customizations=self.modifiers,  # Pass modifiers as customizations for now

@@ -4,8 +4,8 @@ Clear order command for AI order operations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from .base_command import BaseCommand
+from .command_context import CommandContext
 from ..dto.order_result import OrderResult
-from ..services.order_service import OrderService
 
 
 class ClearOrderCommand(BaseCommand):
@@ -28,22 +28,20 @@ class ClearOrderCommand(BaseCommand):
         """
         super().__init__(restaurant_id, order_id)
     
-    async def execute(self, db: AsyncSession) -> OrderResult:
+    async def execute(self, context: CommandContext, db: AsyncSession) -> OrderResult:
         """
         Execute the clear order command
         
         Args:
+            context: Command context providing scoped services
             db: Database session
             
         Returns:
             OrderResult: Result of clearing the order
         """
         try:
-            # Create order service
-            order_service = OrderService(db)
-            
-            # Clear the order
-            result = await order_service.clear_order(order_id=self.order_id)
+            # Clear the order using OrderService from context
+            result = await context.order_service.clear_order(db, context.get_order_id())
             
             # Enhance message for AI
             if result.is_success:

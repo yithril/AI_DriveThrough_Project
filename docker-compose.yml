@@ -33,59 +33,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # LocalStack (S3-compatible storage)
-  localstack:
-    image: localstack/localstack:latest
-    container_name: ai-drivethru-localstack
-    environment:
-      SERVICES: s3
-      DEBUG: 1
-      DATA_DIR: /var/lib/localstack
-      AWS_DEFAULT_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
-    ports:
-      - "4566:4566"  # LocalStack endpoint
-    volumes:
-      - localstack_data:/var/lib/localstack
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
-  # LocalStack Setup (runs once to configure bucket and permissions)
-  localstack-setup:
-    image: amazon/aws-cli:latest
-    container_name: ai-drivethru-localstack-setup
-    depends_on:
-      localstack:
-        condition: service_healthy
-    networks:
-      - default
-    environment:
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
-      AWS_DEFAULT_REGION: us-east-1
-    entrypoint: ["/bin/sh", "-c"]
-    command: |
-      echo "Setting up LocalStack S3 bucket and permissions..."
-      aws --endpoint-url=http://localstack:4566 s3 mb s3://ai-drivethru-files
-      aws --endpoint-url=http://localstack:4566 s3api put-bucket-acl --bucket ai-drivethru-files --acl public-read
-      aws --endpoint-url=http://localstack:4566 s3api put-bucket-policy --bucket ai-drivethru-files --policy '{
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Sid": "PublicReadGetObject",
-            "Effect": "Allow",
-            "Principal": "*",
-            "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::ai-drivethru-files/*"
-          }
-        ]
-      }'
-      echo "LocalStack setup complete! Bucket ai-drivethru-files is now publicly readable."
-      echo "You can now upload images to: http://localhost:4566/ai-drivethru-files/"
+  # Using AWS S3 directly (no LocalStack needed)
 
 
   # Backend API
@@ -96,7 +44,9 @@ services:
     container_name: ai-drivethru-backend
     env_file:
       - ./backend/.env
-      
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ai_drivethru
+      - REDIS_URL=redis://redis:6379
     ports:
       - "8000:8000"
     volumes:
@@ -106,8 +56,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      localstack:
         condition: service_healthy
     command: >
       sh -c "
@@ -135,10 +83,10 @@ services:
       - CHOKIDAR_USEPOLLING=true  # Enable polling for chokidar
     command: >
       sh -c "
+        echo 'Cleaning up .next directory...' &&
+        rm -rf /app/.next &&
         echo 'Installing dependencies...' &&
         npm install &&
-        echo 'Setting up .next directory permissions...' &&
-        mkdir -p /app/.next && chmod -R 755 /app/.next &&
         echo 'Starting frontend development server...' &&
         npm run dev -- --hostname 0.0.0.0
       "
@@ -146,7 +94,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  localstack_data:
 
 networks:
   default:

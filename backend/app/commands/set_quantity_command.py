@@ -4,9 +4,9 @@ Set quantity command for AI order operations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from .base_command import BaseCommand
+from .command_context import CommandContext
 from .target_reference import TargetReference
 from ..dto.order_result import OrderResult
-from ..services.order_service import OrderService
 
 
 class SetQuantityCommand(BaseCommand):
@@ -38,22 +38,20 @@ class SetQuantityCommand(BaseCommand):
         if self.quantity <= 0:
             raise ValueError("Quantity must be greater than 0")
     
-    async def execute(self, db: AsyncSession) -> OrderResult:
+    async def execute(self, context: CommandContext, db: AsyncSession) -> OrderResult:
         """
         Execute the set quantity command
         
         Args:
+            context: Command context providing scoped services
             db: Database session
             
         Returns:
             OrderResult: Result of setting the quantity
         """
         try:
-            # Create order service
-            order_service = OrderService(db)
-            
             # Get current order items to resolve target reference
-            order_result = await order_service.get_order(self.order_id)
+            order_result = await context.order_service.get_order(db, context.get_order_id())
             if not order_result.is_success:
                 return OrderResult.error("Could not retrieve order to resolve target reference")
             
@@ -68,8 +66,8 @@ class SetQuantityCommand(BaseCommand):
             
             # Update quantity in the database
             # For now, we'll use a placeholder - in full implementation, you'd update the order item
-            result = await order_service.update_order_item_quantity(
-                order_id=self.order_id,
+            result = await context.order_service.update_order_item_quantity(
+                order_id=context.get_order_id(),
                 order_item_id=resolved_item.id,
                 quantity=self.quantity
             )

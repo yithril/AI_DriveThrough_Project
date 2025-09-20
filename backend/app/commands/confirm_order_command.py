@@ -4,8 +4,8 @@ Confirm order command for AI order operations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from .base_command import BaseCommand
+from .command_context import CommandContext
 from ..dto.order_result import OrderResult
-from ..services.order_service import OrderService
 
 
 class ConfirmOrderCommand(BaseCommand):
@@ -28,22 +28,20 @@ class ConfirmOrderCommand(BaseCommand):
         """
         super().__init__(restaurant_id, order_id)
     
-    async def execute(self, db: AsyncSession) -> OrderResult:
+    async def execute(self, context: CommandContext, db: AsyncSession) -> OrderResult:
         """
         Execute the confirm order command
         
         Args:
+            context: Command context providing scoped services
             db: Database session
             
         Returns:
             OrderResult: Result of confirming the order
         """
         try:
-            # Create order service
-            order_service = OrderService(db)
-            
             # Get current order to validate it has items
-            order_result = await order_service.get_order(self.order_id)
+            order_result = await context.order_service.get_order(db, context.get_order_id())
             if not order_result.is_success:
                 return OrderResult.error("Could not retrieve order to confirm")
             
@@ -54,7 +52,7 @@ class ConfirmOrderCommand(BaseCommand):
                 return OrderResult.error("Cannot confirm empty order. Please add items first.")
             
             # Confirm the order (update status to confirmed)
-            result = await order_service.confirm_order(self.order_id)
+            result = await context.order_service.confirm_order(db, context.get_order_id())
             
             if result.is_success:
                 # Get order summary for confirmation message

@@ -47,10 +47,16 @@ class Container(containers.DeclarativeContainer):
         endpoint_url=config.AWS_ENDPOINT_URL
     )
     
-    # Order service (only depends on Redis, gets session from API boundary)
+    # Order session service (Redis primary with PostgreSQL fallback)
+    order_session_service = providers.Singleton(
+        "app.services.order_session_service.OrderSessionService",
+        redis_service=redis_service
+    )
+    
+    # Order service (depends on OrderSessionService)
     order_service = providers.Factory(
         "app.services.order_service.OrderService",
-        redis_service=redis_service
+        order_session_service=order_session_service
     )
     
     # Audio pipeline service (orchestrates other services)

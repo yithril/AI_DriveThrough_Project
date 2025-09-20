@@ -17,13 +17,13 @@ export default function RestaurantLogo({ restaurant }: RestaurantLogoProps) {
     <div 
       className="w-full p-6"
       style={{ 
-        backgroundColor: theme.surface,
+        background: 'transparent',
         borderBottom: `1px solid ${theme.border.primary}`
       }}
     >
       {restaurant?.logo_url ? (
         <img 
-          src={`${process.env.NEXT_PUBLIC_S3_BUCKET_URL || 'https://ai-drivethru-files.s3.us-east-2.amazonaws.com'}/restaurants/20/images/${restaurant.logo_url}`}
+          src={`${process.env.NEXT_PUBLIC_S3_BUCKET_URL || 'https://ai-drivethru-files.s3.us-east-2.amazonaws.com'}/restaurants/${process.env.NEXT_PUBLIC_RESTAURANT_ID || '1'}/images/${restaurant.logo_url}`}
           alt={restaurant.name}
           className="w-full h-auto object-contain"
           style={{ maxHeight: '200px', maxWidth: '100%' }}

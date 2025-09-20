@@ -5,8 +5,8 @@ Answer question command for AI customer service
 from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from .base_command import BaseCommand
+from .command_context import CommandContext
 from ..dto.order_result import OrderResult
-from ..services.order_service import OrderService
 from ..repository.menu_item_repository import MenuItemRepository
 from ..repository.restaurant_repository import RestaurantRepository
 
@@ -37,11 +37,12 @@ class AnswerQuestionCommand(BaseCommand):
         self.question = question
         self.context = context or {}
     
-    async def execute(self, db: AsyncSession) -> OrderResult:
+    async def execute(self, context: CommandContext, db: AsyncSession) -> OrderResult:
         """
         Execute the answer question command
         
         Args:
+            context: Command context providing scoped services
             db: Database session
             
         Returns:
@@ -176,8 +177,7 @@ class AnswerQuestionCommand(BaseCommand):
                     data={"question_type": "order", "has_order": False}
                 )
             
-            order_service = OrderService(db)
-            result = await order_service.get_order(self.order_id)
+            result = await context.order_service.get_order(db, context.get_order_id())
             
             if result.is_success:
                 order_data = result.data["order"]

@@ -41,7 +41,7 @@ export default function MenuItemCard({ item, theme, restaurantId }: MenuItemCard
     <div 
       className="rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden"
       style={{ 
-        backgroundColor: theme.surface,
+        background: 'transparent',
         border: `1px solid ${theme.border.primary}`,
       }}
       onMouseEnter={(e) => {

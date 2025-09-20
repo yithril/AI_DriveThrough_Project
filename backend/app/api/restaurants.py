@@ -32,6 +32,8 @@ async def restaurant_api_health_check():
 
 
 
+
+
 @router.get("/{restaurant_id}/menu")
 async def get_restaurant_menu(restaurant_id: int, db = Depends(get_db)):
     """
@@ -44,6 +46,7 @@ async def get_restaurant_menu(restaurant_id: int, db = Depends(get_db)):
         dict: Restaurant menu with categories and items
     """
     try:
+        
         # Get restaurant info
         restaurant_repo = RestaurantRepository(db)
         restaurant = await restaurant_repo.get_by_id(restaurant_id)

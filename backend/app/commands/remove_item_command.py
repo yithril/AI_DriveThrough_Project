@@ -5,9 +5,9 @@ Remove item command for AI order operations
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from .base_command import BaseCommand
+from .command_context import CommandContext
 from .target_reference import TargetReference
 from ..dto.order_result import OrderResult
-from ..services.order_service import OrderService
 
 
 class RemoveItemCommand(BaseCommand):
@@ -40,24 +40,22 @@ class RemoveItemCommand(BaseCommand):
         if not self.order_item_id and not self.target_ref:
             raise ValueError("Must provide either order_item_id or target_ref")
     
-    async def execute(self, db: AsyncSession) -> OrderResult:
+    async def execute(self, context: CommandContext, db: AsyncSession) -> OrderResult:
         """
         Execute the remove item command
         
         Args:
+            context: Command context providing scoped services
             db: Database session
             
         Returns:
             OrderResult: Result of removing the item
         """
         try:
-            # Create order service
-            order_service = OrderService(db)
-            
             # Resolve target reference if needed
             if self.target_ref and not self.order_item_id:
                 # Get current order items to resolve target reference
-                order_result = await order_service.get_order(self.order_id)
+                order_result = await context.order_service.get_order(db, context.get_order_id())
                 if not order_result.is_success:
                     return OrderResult.error("Could not retrieve order to resolve target reference")
                 
@@ -73,8 +71,8 @@ class RemoveItemCommand(BaseCommand):
                 self.order_item_id = resolved_item.id
             
             # Remove item from order
-            result = await order_service.remove_item_from_order(
-                order_id=self.order_id,
+            result = await context.order_service.remove_item_from_order(
+                order_id=context.get_order_id(),
                 order_item_id=self.order_item_id
             )
             

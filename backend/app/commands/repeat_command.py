@@ -5,9 +5,9 @@ Repeat command for AI order operations
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from .base_command import BaseCommand
+from .command_context import CommandContext
 from .target_reference import TargetReference
 from ..dto.order_result import OrderResult
-from ..services.order_service import OrderService
 
 
 class RepeatCommand(BaseCommand):
@@ -39,22 +39,20 @@ class RepeatCommand(BaseCommand):
         if self.scope not in ["last_item", "full_order"]:
             raise ValueError("Scope must be 'last_item' or 'full_order'")
     
-    async def execute(self, db: AsyncSession) -> OrderResult:
+    async def execute(self, context: CommandContext, db: AsyncSession) -> OrderResult:
         """
         Execute the repeat command
         
         Args:
+            context: Command context providing scoped services
             db: Database session
             
         Returns:
             OrderResult: Result of repeating the item(s)
         """
         try:
-            # Create order service
-            order_service = OrderService(db)
-            
             # Get current order items to resolve target reference
-            order_result = await order_service.get_order(self.order_id)
+            order_result = await context.order_service.get_order(db, context.get_order_id())
             if not order_result.is_success:
                 return OrderResult.error("Could not retrieve order to repeat items")
             
@@ -66,8 +64,8 @@ class RepeatCommand(BaseCommand):
                 # Repeat all items in the order
                 repeated_count = 0
                 for item in order_items:
-                    result = await order_service.add_item_to_order(
-                        order_id=self.order_id,
+                    result = await context.order_service.add_item_to_order(
+                        order_id=context.get_order_id(),
                         menu_item_id=item.menu_item_id,
                         quantity=item.quantity,
                         customizations=item.customizations or [],
@@ -92,8 +90,8 @@ class RepeatCommand(BaseCommand):
                     return OrderResult.error(f"Could not resolve target reference: {self.target_ref}")
                 
                 # Add a copy of the resolved item
-                result = await order_service.add_item_to_order(
-                    order_id=self.order_id,
+                result = await context.order_service.add_item_to_order(
+                    order_id=context.get_order_id(),
                     menu_item_id=resolved_item.menu_item_id,
                     quantity=resolved_item.quantity,
                     customizations=resolved_item.customizations or [],

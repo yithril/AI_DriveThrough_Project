@@ -97,7 +97,7 @@ export default function MainLayout() {
       {/* Right Panel - Menu Display (2/3) */}
       <div 
         className="w-2/3"
-        style={{ backgroundColor: theme.surface }}
+        style={{ background: 'transparent' }}
       >
         {/* Restaurant Logo */}
         <RestaurantLogo restaurant={restaurant} />
