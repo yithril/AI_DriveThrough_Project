@@ -76,15 +76,20 @@ jobs:
             --task $TASK_ID \
             --container backend \
             --interactive \
-            --command "poetry run alembic current" || echo "⚠️ Could not check current migration status"
+            --command "cd /app && poetry run alembic current" || echo "⚠️ Could not check current migration status"
           
           # Run migrations with error handling
-          if aws ecs execute-command \
+          echo "🚀 Starting migration process..."
+          MIGRATION_OUTPUT=$(aws ecs execute-command \
             --cluster ai-drivethru-cluster \
             --task $TASK_ID \
             --container backend \
             --interactive \
-            --command "poetry run alembic upgrade head"; then
+            --command "cd /app && poetry run alembic upgrade head" 2>&1)
+          
+          MIGRATION_EXIT_CODE=$?
+          
+          if [ $MIGRATION_EXIT_CODE -eq 0 ]; then
             
             echo "✅ Migrations completed successfully"
             
@@ -95,7 +100,7 @@ jobs:
               --task $TASK_ID \
               --container backend \
               --interactive \
-              --command "poetry run alembic history --verbose" || echo "⚠️ Could not show migration history"
+              --command "cd /app && poetry run alembic history --verbose" || echo "⚠️ Could not show migration history"
             
             # Verify migrations worked
             echo "🔍 Verifying database schema..."
@@ -104,7 +109,7 @@ jobs:
               --task $TASK_ID \
               --container backend \
               --interactive \
-              --command "python -c 'from app.core.database import engine; from sqlalchemy import text; with engine.connect() as conn: result = conn.execute(text(\"SELECT version_num FROM alembic_version\")); print(f\"✅ Current migration version: {result.fetchone()[0]}\")'"; then
+              --command "cd /app && python -c \"from app.core.database import engine; from sqlalchemy import text; conn = engine.connect(); result = conn.execute(text('SELECT version_num FROM alembic_version')); print('✅ Current migration version:', result.fetchone()[0]); conn.close()\""; then
               echo "✅ Database schema verification successful"
             else
               echo "⚠️ Database schema verification failed, but migrations may have succeeded"
@@ -112,6 +117,9 @@ jobs:
             
           else
             echo "❌ Database migrations failed!"
+            echo "Exit code: $MIGRATION_EXIT_CODE"
+            echo "Migration output:"
+            echo "$MIGRATION_OUTPUT"
             echo "💡 Check the ECS logs for more details:"
             echo "aws logs tail /ecs/ai-drivethru-backend --follow"
             exit 1
