@@ -76,7 +76,7 @@ jobs:
             --task $TASK_ID \
             --container backend \
             --interactive \
-            --command "cd /app && poetry run alembic current" || echo "⚠️ Could not check current migration status"
+            --command "python -m alembic current" || echo "⚠️ Could not check current migration status"
           
           # Run migrations with error handling
           echo "🚀 Starting migration process..."
@@ -85,7 +85,7 @@ jobs:
             --task $TASK_ID \
             --container backend \
             --interactive \
-            --command "cd /app && poetry run alembic upgrade head" 2>&1)
+            --command "python -m alembic upgrade head" 2>&1)
           
           MIGRATION_EXIT_CODE=$?
           
@@ -100,7 +100,7 @@ jobs:
               --task $TASK_ID \
               --container backend \
               --interactive \
-              --command "cd /app && poetry run alembic history --verbose" || echo "⚠️ Could not show migration history"
+              --command "python -m alembic history --verbose" || echo "⚠️ Could not show migration history"
             
             # Verify migrations worked
             echo "🔍 Verifying database schema..."
@@ -109,7 +109,7 @@ jobs:
               --task $TASK_ID \
               --container backend \
               --interactive \
-              --command "cd /app && python -c \"from app.core.database import engine; from sqlalchemy import text; conn = engine.connect(); result = conn.execute(text('SELECT version_num FROM alembic_version')); print('✅ Current migration version:', result.fetchone()[0]); conn.close()\""; then
+              --command "python -c \"from app.core.database import engine; from sqlalchemy import text; conn = engine.connect(); result = conn.execute(text('SELECT version_num FROM alembic_version')); print('✅ Current migration version:', result.fetchone()[0]); conn.close()\""; then
               echo "✅ Database schema verification successful"
             else
               echo "⚠️ Database schema verification failed, but migrations may have succeeded"
