@@ -53,19 +53,48 @@ def run_import_via_ecs(task_id, excel_file_name="import_excel.xlsx", overwrite_e
             "--task", task_id,
             "--container", "backend",
             "--interactive",
-            "--command", f"cd /app && python scripts/import_restaurant.py --excel-file import/{excel_file_name} {'--overwrite' if overwrite_existing else ''}"
+            "--command", f"python /app/scripts/import_restaurant.py /app/import/{excel_file_name} {'--overwrite' if overwrite_existing else ''}"
         ]
         
-        print(f"📦 Running: python scripts/import_restaurant.py --excel-file import/{excel_file_name}")
+        print(f"📦 Running: python scripts/import_restaurant.py import/{excel_file_name}")
         if overwrite_existing:
             print("⚠️  Overwrite mode enabled")
         print("⏳ This may take a few minutes...")
         
-        # Run the command
-        result = subprocess.run(cmd, check=True)
+        # Run the command and capture output
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True)
         
-        print("✅ Import completed successfully!")
-        return True
+        if result.returncode == 0:
+            print("✅ Import completed successfully!")
+            
+            # Show the actual output for debugging
+            if result.stdout:
+                print("\n📋 Import Output:")
+                print(result.stdout)
+            
+            # Try to extract restaurant ID from output
+            output_lines = result.stdout.split('\n') if result.stdout else []
+            restaurant_id = None
+            
+            for line in output_lines:
+                if 'Restaurant ID:' in line:
+                    try:
+                        restaurant_id = line.split('Restaurant ID:')[1].strip()
+                        break
+                    except:
+                        pass
+            
+            if restaurant_id:
+                print(f"🏪 Restaurant ID: {restaurant_id}")
+            else:
+                print("⚠️  Could not determine restaurant ID from output")
+            
+            return True
+        else:
+            print("❌ Import failed with return code:", result.returncode)
+            if result.stderr:
+                print("Error output:", result.stderr)
+            return False
         
     except subprocess.CalledProcessError as e:
         print(f"❌ Import failed: {e}")

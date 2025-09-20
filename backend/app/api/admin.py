@@ -423,7 +423,7 @@ async def admin_import(
     images: list[UploadFile] = File(None),
     overwrite: bool = Form(False),
     generate_audio: bool = Form(True),
-    jwt: Annotated[dict, Depends(JWT)] = None,
+    # jwt: Annotated[dict, Depends(JWT)] = None,  # Temporarily disabled for admin page
     excel_import_service: ExcelImportService = Depends(Provide[Container.excel_import_service]),
     restaurant_import_service: RestaurantImportService = Depends(Provide[Container.restaurant_import_service]),
     file_storage_service: S3FileStorageService = Depends(Provide[Container.file_storage_service]),

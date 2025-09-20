@@ -113,6 +113,9 @@ async def import_restaurant_data(
                             restaurant_id = result.data.get('restaurant_id', 20)
                             restaurant_name = result.data.get('restaurant_name', 'Restaurant')
                             restaurant_slug = result.data.get('restaurant_slug', 'default')
+                            
+                            # Output restaurant ID for the ECS script to capture
+                            print(f"Restaurant ID: {restaurant_id}")
                         else:
                             print("   (No detailed data available)")
                         
@@ -575,6 +578,8 @@ def main():
         images_path = os.path.abspath(args.images) if args.images else None
         overwrite_existing = args.overwrite
         generate_audio = not args.no_audio
+        import_menu = True  # Always import menu in command line mode
+        upload_images = True  # Always upload images if folder provided
         
         print("🚀 AI DriveThru Restaurant Import Script")
         print("=" * 50)

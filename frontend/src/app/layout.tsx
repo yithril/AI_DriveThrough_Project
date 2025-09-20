@@ -5,6 +5,7 @@ import { DataProvider } from "@/contexts/DataContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SpeakerProvider } from "@/contexts/SpeakerContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SessionProvider } from "next-auth/react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,15 +32,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ErrorBoundary>
-          <DataProvider>
-            <ThemeProvider>
-              <SpeakerProvider>
-                {children}
-              </SpeakerProvider>
-            </ThemeProvider>
-          </DataProvider>
-        </ErrorBoundary>
+        <SessionProvider>
+          <ErrorBoundary>
+            <DataProvider>
+              <ThemeProvider>
+                <SpeakerProvider>
+                  {children}
+                </SpeakerProvider>
+              </ThemeProvider>
+            </DataProvider>
+          </ErrorBoundary>
+        </SessionProvider>
       </body>
     </html>
   );
