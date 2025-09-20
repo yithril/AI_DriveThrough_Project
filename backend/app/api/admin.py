@@ -10,6 +10,7 @@ from datetime import timedelta
 
 from app.core.container import Container
 from app.core.database import get_db
+from app.core.unit_of_work import UnitOfWork
 from app.services.excel_import_service import ExcelImportService
 from app.services.restaurant_import_service import RestaurantImportService
 from app.services.file_storage_service import S3FileStorageService
@@ -36,15 +37,30 @@ async def admin_import(
         # Read Excel file
         excel_data = await excel_file.read()
         
-        # Parse and validate Excel
-        menu_data = excel_import_service.parse_excel(excel_data)
-        
-        # Import restaurant data
-        result = await restaurant_import_service.import_restaurant_data(
-            menu_data=menu_data,
-            overwrite_existing=overwrite,
-            db=db
-        )
+        # Use Unit of Work pattern for transaction management
+        async with UnitOfWork(db) as uow:
+            # Parse and validate Excel
+            excel_service = ExcelImportService(db)
+            menu_data = await excel_service.parse_restaurant_excel(excel_data)
+            
+            if not menu_data.success:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Excel parsing failed: {menu_data.message}"
+                )
+            
+            # Import restaurant data
+            import_service = RestaurantImportService(db)
+            result = await import_service.import_restaurant_data(
+                validated_data=menu_data.data,
+                overwrite_existing=overwrite
+            )
+            
+            if not result.success:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Import failed: {result.message}"
+                )
         
         # Upload images if provided
         if images:

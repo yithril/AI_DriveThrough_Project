@@ -70,9 +70,9 @@ class Container(containers.DeclarativeContainer):
         tts_service=tts_service
     )
     
-    # Import services
-    excel_import_service = providers.Singleton("app.services.excel_import_service.ExcelImportService")
-    restaurant_import_service = providers.Singleton("app.services.restaurant_import_service.RestaurantImportService")
+    # Import services (these need database sessions, so they're created per request)
+    excel_import_service = providers.Factory("app.services.excel_import_service.ExcelImportService")
+    restaurant_import_service = providers.Factory("app.services.restaurant_import_service.RestaurantImportService")
 
     def init_resources(self):
         """Initialize resources that need startup setup"""
