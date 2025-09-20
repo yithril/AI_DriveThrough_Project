@@ -50,6 +50,79 @@ jobs:
           --service ai-drivethru-backend-service \
           --force-new-deployment
     
+    - name: Wait for ECS service to be stable
+      run: |
+        echo "⏳ Waiting for ECS service to be stable..."
+        aws ecs wait services-stable \
+          --cluster ai-drivethru-cluster \
+          --services ai-drivethru-backend-service
+        echo "✅ ECS service is stable"
+    
+    - name: Run database migrations
+      run: |
+        echo "🔄 Running database migrations..."
+        
+        # Get the ECS task ID
+        TASK_ARN=$(aws ecs list-tasks --cluster ai-drivethru-cluster --service-name ai-drivethru-backend-service --query 'taskArns[0]' --output text)
+        TASK_ID=$(echo $TASK_ARN | cut -d'/' -f3)
+        
+        if [ -n "$TASK_ID" ]; then
+          echo "📦 Running migrations in task: $TASK_ID"
+          
+          # Check current migration status first
+          echo "🔍 Checking current migration status..."
+          aws ecs execute-command \
+            --cluster ai-drivethru-cluster \
+            --task $TASK_ID \
+            --container backend \
+            --interactive \
+            --command "poetry run alembic current" || echo "⚠️ Could not check current migration status"
+          
+          # Run migrations with error handling
+          if aws ecs execute-command \
+            --cluster ai-drivethru-cluster \
+            --task $TASK_ID \
+            --container backend \
+            --interactive \
+            --command "poetry run alembic upgrade head"; then
+            
+            echo "✅ Migrations completed successfully"
+            
+            # Show migration history
+            echo "📋 Migration history:"
+            aws ecs execute-command \
+              --cluster ai-drivethru-cluster \
+              --task $TASK_ID \
+              --container backend \
+              --interactive \
+              --command "poetry run alembic history --verbose" || echo "⚠️ Could not show migration history"
+            
+            # Verify migrations worked
+            echo "🔍 Verifying database schema..."
+            if aws ecs execute-command \
+              --cluster ai-drivethru-cluster \
+              --task $TASK_ID \
+              --container backend \
+              --interactive \
+              --command "python -c 'from app.core.database import engine; from sqlalchemy import text; with engine.connect() as conn: result = conn.execute(text(\"SELECT version_num FROM alembic_version\")); print(f\"✅ Current migration version: {result.fetchone()[0]}\")'"; then
+              echo "✅ Database schema verification successful"
+            else
+              echo "⚠️ Database schema verification failed, but migrations may have succeeded"
+            fi
+            
+          else
+            echo "❌ Database migrations failed!"
+            echo "💡 Check the ECS logs for more details:"
+            echo "aws logs tail /ecs/ai-drivethru-backend --follow"
+            exit 1
+          fi
+          
+        else
+          echo "❌ No running tasks found for migrations"
+          echo "💡 Make sure your ECS service is running and healthy"
+          exit 1
+        fi
+    
     - name: Check deployment status
       run: |
         echo "Checking ECS service status..."
