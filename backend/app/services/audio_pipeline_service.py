@@ -8,11 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dto.order_result import OrderResult
 from ..models.language import Language
+from ..agents.state import ConversationWorkflowState
 from .speech_service import SpeechService
 from .validation_interface import ValidationServiceInterface
-from .ai_agent import OrderIntentProcessor
+from .order_session_service import OrderSessionService
 from .file_storage_service import FileStorageService
-from .order_service import OrderService
+from ..agents.workflow import ConversationWorkflow
 
 
 class AudioPipelineService:
@@ -24,95 +25,90 @@ class AudioPipelineService:
         self,
         speech_service: SpeechService,
         validation_service: ValidationServiceInterface,
-        order_intent_processor: OrderIntentProcessor,
+        order_session_service: OrderSessionService,
         file_storage_service: FileStorageService,
-        order_service: OrderService
+        conversation_workflow: ConversationWorkflow
     ):
         self.speech_service = speech_service
         self.validation_service = validation_service
-        self.order_intent_processor = order_intent_processor
+        self.order_session_service = order_session_service
         self.file_storage_service = file_storage_service
-        self.order_service = order_service
+        self.conversation_workflow = conversation_workflow
     
     async def process_audio_pipeline(
         self,
         audio_file: UploadFile,
+        session_id: str,
         restaurant_id: int,
-        order_id: Optional[int],
         language: str,
         db: AsyncSession
-    ) -> OrderResult:
+    ) -> ConversationWorkflowState:
         """
         Process audio through the complete AI pipeline
         
         Args:
             audio_file: Uploaded audio file
+            session_id: Session ID for conversation state
             restaurant_id: Restaurant ID for context
-            order_id: Optional order ID (will create new if None)
             language: Language code (en, es, etc.)
             db: Database session
             
         Returns:
-            OrderResult: Complete pipeline result
+            ConversationWorkflowState: Completed workflow state with response and audio URL
         """
         try:
             # Step 1: Validate audio file
             validation_result = await self._validate_audio_file(audio_file)
             if not validation_result.success:
-                return validation_result
+                raise ValueError(f"Audio validation failed: {validation_result.message}")
             
             # Read audio data
             audio_data = await audio_file.read()
             
-            # Step 2: Handle order creation or retrieval
-            order_result = await self._ensure_order_exists(restaurant_id, order_id, db)
-            if not order_result.success:
-                return order_result
-            
-            order_id = order_result.data
-            
-            # Step 3: Store audio file
-            store_result = await self._store_audio_file(audio_file, audio_data, restaurant_id, order_id)
+            # Step 2: Store audio file
+            store_result = await self._store_audio_file(audio_file, audio_data, restaurant_id, session_id)
             if not store_result.success:
-                return store_result
+                raise ValueError(f"Audio storage failed: {store_result.message}")
             
             file_id = store_result.data["file_id"]
             
-            # Step 4: Speech-to-text
+            # Step 3: Speech-to-text
             speech_result = await self._transcribe_audio(audio_file, audio_data, language)
             if not speech_result.success:
-                return speech_result
+                raise ValueError(f"Speech transcription failed: {speech_result.message}")
             
             transcript = speech_result.data["transcript"]
             
-            # Step 5: LLM Guard validation
+            # Step 4: LLM Guard validation
             guard_result = await self._validate_transcript(transcript)
             if not guard_result.success:
-                return guard_result
+                raise ValueError(f"Transcript validation failed: {guard_result.message}")
             
-            # Step 6: Intent processing
-            intent_result = await self._process_intent(transcript, restaurant_id, order_id, db)
-            if not intent_result.success:
-                return intent_result
+            # Step 5: Store transcript
+            await self._store_transcript(file_id, transcript, speech_result.data, restaurant_id, session_id)
             
-            # Step 7: Store transcript
-            await self._store_transcript(file_id, transcript, speech_result.data, restaurant_id, order_id)
-            
-            # Return complete result
-            return OrderResult.success(
-                intent_result.message,
-                data={
-                    "transcript": transcript,
-                    "language": speech_result.data.get("language", "en"),
-                    "language_name": speech_result.data.get("language_name", "English"),
-                    "intent": intent_result.data,
-                    "file_id": file_id,
-                    "order_id": order_id
-                }
+            # Step 6: Get session state from OrderSessionService
+            workflow_state = await self.order_session_service.get_conversation_workflow_state(
+                session_id=session_id,
+                user_input=transcript
             )
             
+            # Step 7: Feed into workflow (black box)
+            completed_workflow_state = await self.conversation_workflow.process_conversation_turn(workflow_state)
+            
+            # Return completed workflow state
+            return completed_workflow_state
+            
         except Exception as e:
-            return OrderResult.error(f"Audio pipeline processing failed: {str(e)}")
+            # Create error workflow state
+            error_state = ConversationWorkflowState(
+                session_id=session_id,
+                restaurant_id=restaurant_id,
+                user_input="",
+                response_text=f"I'm sorry, I had trouble processing your request. Please try again.",
+                errors=[str(e)]
+            )
+            return error_state
     
     async def _validate_audio_file(self, audio_file: UploadFile) -> OrderResult:
         """Validate audio file for size, type, and duration"""
@@ -141,39 +137,15 @@ class AudioPipelineService:
         except Exception as e:
             return OrderResult.error(f"File validation failed: {str(e)}")
     
-    async def _ensure_order_exists(self, restaurant_id: int, order_id: Optional[int], db: AsyncSession) -> OrderResult:
-        """Ensure order exists, create if needed"""
-        if order_id is None:
-            # Create new order
-            order_result = await self.order_service.create_order(
-                restaurant_id=restaurant_id,
-                customer_name=None,
-                customer_phone=None,
-                user_id=None
-            )
-            if not order_result.success:
-                return OrderResult.error(f"Failed to create order: {order_result.message}")
-            return OrderResult.success("Order created", data=order_result.data.id)
-        else:
-            # Verify existing order
-            order_result = await self.order_service.get_order(order_id)
-            if not order_result.success:
-                return OrderResult.error(f"Order not found: {order_result.message}")
-            
-            # Verify order belongs to restaurant
-            if order_result.data.restaurant_id != restaurant_id:
-                return OrderResult.error("Order does not belong to this restaurant")
-            
-            return OrderResult.success("Order verified", data=order_id)
-    
-    async def _store_audio_file(self, audio_file: UploadFile, audio_data: bytes, restaurant_id: int, order_id: int) -> OrderResult:
+    async def _store_audio_file(self, audio_file: UploadFile, audio_data: bytes, restaurant_id: int, session_id: str) -> OrderResult:
         """Store audio file in S3"""
         store_result = await self.file_storage_service.store_file(
             file_data=audio_data,
             file_name=audio_file.filename,
             content_type=audio_file.content_type,
             restaurant_id=restaurant_id,
-            order_id=order_id
+            order_id=None,  # We don't have order_id anymore, use session_id for organization
+            metadata={"session_id": session_id}  # Store session_id in metadata
         )
         
         if not store_result.success:
@@ -205,21 +177,7 @@ class AudioPipelineService:
         
         return OrderResult.success("Transcript validated")
     
-    async def _process_intent(self, transcript: str, restaurant_id: int, order_id: int, db: AsyncSession) -> OrderResult:
-        """Process intent using OrderIntentProcessor"""
-        ai_result = await self.order_intent_processor.process_intent(
-            text=transcript,
-            restaurant_id=restaurant_id,
-            order_id=order_id,
-            db=db
-        )
-        
-        if not ai_result.success:
-            return OrderResult.error(f"AI processing failed: {ai_result.message}")
-        
-        return ai_result
-    
-    async def _store_transcript(self, file_id: str, transcript: str, speech_data: Dict[str, Any], restaurant_id: int, order_id: int) -> None:
+    async def _store_transcript(self, file_id: str, transcript: str, speech_data: Dict[str, Any], restaurant_id: int, session_id: str) -> None:
         """Store transcript with metadata"""
         await self.file_storage_service.store_transcript(
             file_id=file_id,
@@ -228,8 +186,9 @@ class AudioPipelineService:
                 "duration": speech_data.get("duration", 0),
                 "confidence": speech_data.get("confidence", 0),
                 "restaurant_id": restaurant_id,
-                "order_id": order_id
+                "session_id": session_id
             },
             restaurant_id=restaurant_id,
-            order_id=order_id
+            order_id=None,  # We don't have order_id anymore
+            metadata_override={"session_id": session_id}  # Store session_id in metadata
         )

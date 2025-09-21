@@ -9,7 +9,7 @@ from dependency_injector.wiring import Provide, inject
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.container import Container
 from ..core.database import get_db
-from ..services.order_service import OrderService
+from ..services.order_session_service import OrderSessionService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 async def new_car(
     request_data: NewCarRequest,
     db: AsyncSession = Depends(get_db),
-    order_service: OrderService = Depends(Provide[Container.order_service])
+    order_session_service: OrderSessionService = Depends(Provide[Container.order_session_service])
 ):
     """
     Handle new car arriving (NEW_CAR event)
@@ -39,19 +39,34 @@ async def new_car(
     try:
         logger.info(f"Received new car request: {request_data}")
         
-        # Use the injected order service with database session from FastAPI DI
-        result = await order_service.handle_new_car(db, request_data.restaurant_id)
+        # Generate session ID
+        import uuid
+        session_id = str(uuid.uuid4())
         
-        if not result.success:
+        # Create new conversation session using OrderSessionService
+        session_created = await order_session_service.create_new_conversation_session(
+            session_id=session_id,
+            restaurant_id=request_data.restaurant_id,
+            customer_name=None
+        )
+        
+        if not session_created:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result.message
+                detail="Failed to create new session"
             )
+        
+        # Set as current session
+        await order_session_service.set_current_session_id(session_id)
         
         return {
             "success": True,
-            "message": result.message,
-            "data": result.data
+            "message": "New car session created",
+            "data": {
+                "session_id": session_id,
+                "restaurant_id": request_data.restaurant_id,
+                "greeting_audio_url": None  # TODO: Add greeting audio generation
+            }
         }
         
     except Exception as e:
@@ -64,7 +79,7 @@ async def new_car(
 @router.post("/next-car")
 @inject
 async def next_car(
-    order_service: OrderService = Depends(Provide[Container.order_service])
+    order_session_service: OrderSessionService = Depends(Provide[Container.order_session_service])
 ):
     """
     Handle next car (NEXT_CAR event)
@@ -73,17 +88,13 @@ async def next_car(
         dict: Result of operation
     """
     try:
-        result = await order_service.handle_next_car()
-        
-        if not result.success:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result.message
-            )
+        # Clear current session
+        await order_session_service.clear_current_session_id()
+        logger.info("Next car handled - cleared current session")
         
         return {
             "success": True,
-            "message": result.message
+            "message": "Next car handled - session cleared, ready for new session"
         }
         
     except Exception as e:
@@ -95,7 +106,7 @@ async def next_car(
 
 @router.get("/current")
 async def get_current_session(
-    order_service: OrderService = Depends(Container.order_service)
+    order_session_service: OrderSessionService = Depends(Provide[Container.order_session_service])
 ):
     """
     Get current active session
@@ -104,18 +115,21 @@ async def get_current_session(
         dict: Current session data
     """
     try:
-        result = await order_service.get_current_session()
+        # Get current session from OrderSessionService
+        current_session = await order_session_service.get_current_session()
         
-        if not result.success:
+        if not current_session:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=result.message
+                detail="No current session. Please call /new-car first to create a session."
             )
         
         return {
             "success": True,
-            "message": result.message,
-            "data": result.data
+            "message": "Current session retrieved",
+            "data": {
+                "session": current_session
+            }
         }
         
     except Exception as e:
@@ -129,7 +143,7 @@ async def get_current_session(
 async def update_session(
     session_id: str,
     updates: dict,
-    order_service: OrderService = Depends(Container.order_service)
+    order_session_service: OrderSessionService = Depends(Provide[Container.order_session_service])
 ):
     """
     Update session data (ORDER_ACTIVITY event)
@@ -142,18 +156,17 @@ async def update_session(
         dict: Updated session data
     """
     try:
-        result = await order_service.update_session(session_id, updates)
-        
-        if not result.success:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result.message
-            )
+        # For now, we'll return a simple success since the workflow manages session updates
+        # In the future, this could be used for manual session updates if needed
+        logger.info(f"Session {session_id} update requested: {updates}")
         
         return {
             "success": True,
-            "message": result.message,
-            "data": result.data
+            "message": "Session update handled by workflow",
+            "data": {
+                "session_id": session_id,
+                "updates": updates
+            }
         }
         
     except Exception as e:
