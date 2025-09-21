@@ -61,6 +61,10 @@ class ConfirmOrderCommand(BaseCommand):
                 
                 result.message = f"Order confirmed! {item_count} items, total: ${total_amount:.2f}. Please pull forward to the window."
                 
+                # Initialize data dict if it doesn't exist
+                if result.data is None:
+                    result.data = {}
+                
                 result.data.update({
                     "order_confirmed": True,
                     "item_count": item_count,

@@ -53,11 +53,11 @@ def should_continue_after_follow_up_agent(state: ConversationWorkflowState) -> s
         state: Current conversation workflow state
         
     Returns:
-        Next node name: "voice_generator"
+        Next node name: "dynamic_voice_response"
     """
     # TODO: Implement routing logic
-    # - Always go to voice_generator after follow-up
+    # - Always go to dynamic_voice_response after follow-up
     # - Could add logic for different response types if needed
     
     # Stub implementation
-    return "voice_generator"
+    return "dynamic_voice_response"

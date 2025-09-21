@@ -7,10 +7,11 @@ Each node handles a specific part of the conversation flow.
 
 from .intent_classifier import intent_classifier_node, should_continue_after_intent_classifier
 from .transition_decision import transition_decision_node, should_continue_after_transition_decision
-from .command_agent import command_agent_node, should_continue_after_command_agent
+from .intent_parser_router import intent_parser_router_node, should_continue_after_intent_parser_router
 from .command_executor import command_executor_node, should_continue_after_command_executor
 from .follow_up_agent import follow_up_agent_node, should_continue_after_follow_up_agent
-from .voice_generator import voice_generator_node, should_continue_after_voice_generator
+from .dynamic_voice_response import dynamic_voice_response_node, should_continue_after_dynamic_voice_response
+from .canned_response import canned_response_node, should_continue_after_canned_response
 
 __all__ = [
     # Intent Classifier
@@ -21,9 +22,9 @@ __all__ = [
     "transition_decision_node", 
     "should_continue_after_transition_decision",
     
-    # Command Agent
-    "command_agent_node",
-    "should_continue_after_command_agent",
+    # Intent Parser Router
+    "intent_parser_router_node",
+    "should_continue_after_intent_parser_router",
     
     # Command Executor
     "command_executor_node",
@@ -33,7 +34,11 @@ __all__ = [
     "follow_up_agent_node",
     "should_continue_after_follow_up_agent",
     
-    # Voice Generator
-    "voice_generator_node",
-    "should_continue_after_voice_generator"
+    # Dynamic Voice Response
+    "dynamic_voice_response_node",
+    "should_continue_after_dynamic_voice_response",
+    
+    # Canned Response
+    "canned_response_node",
+    "should_continue_after_canned_response"
 ]

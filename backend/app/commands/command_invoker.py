@@ -6,8 +6,6 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from .base_command import BaseCommand
 from .command_context import CommandContext
-from ..services.order_session_interface import OrderSessionInterface
-from ..services.order_service import OrderService
 from ..dto.order_result import OrderResult, CommandBatchResult, ErrorCode
 
 
@@ -17,50 +15,28 @@ class CommandInvoker:
     Provides a clean interface for the AI to execute operations
     """
     
-    def __init__(
-        self, 
-        db: AsyncSession, 
-        order_session_service: OrderSessionInterface,
-        order_service: OrderService,
-        restaurant_id: int
-    ):
+    def __init__(self):
         """
         Initialize command invoker
         
-        Args:
-            db: Database session for command execution
-            order_session_service: Order session service from DI container
-            order_service: Order service from DI container
-            restaurant_id: Restaurant ID for this invoker's context
+        Services are now provided via CommandContext, not constructor parameters.
         """
-        self.db = db
-        self.order_session_service = order_session_service
-        self.order_service = order_service
-        self.restaurant_id = restaurant_id
         self.command_history: List[Dict[str, Any]] = []
     
-    async def execute_command(self, command: BaseCommand) -> OrderResult:
+    async def execute_command(self, command: BaseCommand, context: CommandContext) -> OrderResult:
         """
         Execute a command and track it in history
         
         Args:
             command: Command to execute
+            context: Command context with services already populated
             
         Returns:
             OrderResult: Result of command execution
         """
         try:
-            # Create command context scoped to the command's order/session
-            context = CommandContext(
-                order_session_service=self.order_session_service,
-                order_service=self.order_service,
-                restaurant_id=self.restaurant_id,
-                order_id=command.order_id,
-                session_id=None  # Could be set based on current session if needed
-            )
-            
             # Execute the command with context
-            result = await command.execute(context, self.db)
+            result = await command.execute(context, context.db_session)
             
             # Track command in history
             self.command_history.append({
@@ -90,7 +66,7 @@ class CommandInvoker:
             
             return error_result
     
-    async def execute_multiple_commands(self, commands: List[BaseCommand]) -> CommandBatchResult:
+    async def execute_multiple_commands(self, commands: List[BaseCommand], context: CommandContext) -> CommandBatchResult:
         """
         Execute multiple commands in sequence
         
@@ -106,7 +82,7 @@ class CommandInvoker:
         for index, command in enumerate(commands):
             try:
                 # Execute command with index context for better error reporting
-                result = await self.execute_command(command)
+                result = await self.execute_command(command, context)
                 results.append(result)
                 command_names.append(command.command_name)
             except Exception as e:
@@ -118,8 +94,37 @@ class CommandInvoker:
                 results.append(error_result)
                 command_names.append(command.command_name)
         
-        # Create aggregated batch result
-        return CommandBatchResult.from_results(results, command_names)
+        # Create aggregated batch result - command executor will enrich it
+        # For now, create with placeholder router fields that will be updated
+        from app.agents.utils.batch_analysis import analyze_batch_outcome, get_first_error_code
+        from app.agents.utils.response_builder import build_summary_events, build_response_payload
+        
+        # Analyze the batch results
+        batch_outcome = analyze_batch_outcome(results)
+        first_error_code = get_first_error_code(results)
+        summary_events = build_summary_events(results)
+        
+        # Determine command family from command names
+        command_family = "UNKNOWN"
+        if command_names:
+            command_family = command_names[0].upper()
+        
+        # Build response payload
+        response_payload = build_response_payload(
+            batch_outcome=batch_outcome,
+            summary_events=summary_events,
+            first_error_code=first_error_code,
+            intent_type=command_family
+        )
+        
+        return CommandBatchResult.from_results(
+            results=results,
+            command_family=command_family,
+            batch_outcome=batch_outcome,
+            first_error_code=first_error_code,
+            response_payload=response_payload,
+            command_names=command_names
+        )
     
     def get_command_history(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """

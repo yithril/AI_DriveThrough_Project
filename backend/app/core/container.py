@@ -22,7 +22,7 @@ class Container(containers.DeclarativeContainer):
     # Database session will be provided by FastAPI DI directly to services
     
     # Core services (no dependencies) - using lazy imports
-    speech_service = providers.Singleton("app.services.speech_service.SpeechService")
+    speech_to_text_service = providers.Singleton("app.services.speech_to_text_service.SpeechToTextService")
     validation_service = providers.Singleton("app.services.lightweight_validation_service.LightweightValidationService")
     order_intent_processor = providers.Singleton("app.services.ai_agent.OrderIntentProcessor")
     
@@ -34,8 +34,8 @@ class Container(containers.DeclarativeContainer):
         "app.services.tts_provider.OpenAITTSProvider",
         api_key=config.OPENAI_API_KEY
     )
-    tts_service = providers.Singleton(
-        "app.services.tts_service.TTSService",
+    text_to_speech_service = providers.Singleton(
+        "app.services.text_to_speech_service.TextToSpeechService",
         provider=tts_provider
     )
     
@@ -65,26 +65,34 @@ class Container(containers.DeclarativeContainer):
         customization_validator=customization_validator
     )
     
-    # Canned audio service (depends on file storage and TTS)
+    # Canned audio service (depends on file storage and TTS) - DEPRECATED: Use voice_service instead
     canned_audio_service = providers.Singleton(
         "app.services.canned_audio_service.CannedAudioService",
         file_storage=file_storage_service,
-        tts_service=tts_service
+        tts_service=text_to_speech_service
+    )
+    
+    # Voice service (unified service for all voice operations)
+    voice_service = providers.Singleton(
+        "app.services.voice_service.VoiceService",
+        text_to_speech_service=text_to_speech_service,
+        speech_to_text_service=speech_to_text_service,
+        file_storage_service=file_storage_service,
+        redis_service=redis_service
     )
     
     # Conversation workflow (LangGraph workflow)
     conversation_workflow = providers.Singleton(
-        "app.agents.workflow.ConversationWorkflow"
+        "app.agents.workflow.ConversationWorkflow",
+        voice_service=voice_service
     )
     
     # Audio pipeline service (orchestrates other services)
     audio_pipeline_service = providers.Singleton(
         "app.services.audio_pipeline_service.AudioPipelineService",
-        speech_service=speech_service,
+        voice_service=voice_service,
         validation_service=validation_service,
         order_session_service=order_session_service,
-        file_storage_service=file_storage_service,
-        canned_audio_service=canned_audio_service,
         conversation_workflow=conversation_workflow
     )
     

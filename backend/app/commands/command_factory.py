@@ -9,11 +9,11 @@ from .base_command import BaseCommand
 from .add_item_command import AddItemCommand
 from .remove_item_command import RemoveItemCommand
 from .clear_order_command import ClearOrderCommand
-from .answer_question_command import AnswerQuestionCommand
-from .modify_item_command import ModifyItemCommand
-from .set_quantity_command import SetQuantityCommand
 from .confirm_order_command import ConfirmOrderCommand
 from .repeat_command import RepeatCommand
+from .question_command import QuestionCommand
+from .small_talk_command import SmallTalkCommand
+from .unknown_command import UnknownCommand
 
 
 class CommandFactory:
@@ -26,13 +26,14 @@ class CommandFactory:
         "ADD_ITEM": AddItemCommand,
         "REMOVE_ITEM": RemoveItemCommand,
         "CLEAR_ORDER": ClearOrderCommand,
-        "MODIFY_ITEM": ModifyItemCommand,
-        "SET_QUANTITY": SetQuantityCommand,
         "CONFIRM_ORDER": ConfirmOrderCommand,
         "REPEAT": RepeatCommand,
-        "QUESTION": AnswerQuestionCommand,
-        "SMALL_TALK": AnswerQuestionCommand,  # Route small talk to question handler
-        "UNKNOWN": AnswerQuestionCommand,     # Route unknown to question handler
+        "QUESTION": QuestionCommand,
+        "SMALL_TALK": SmallTalkCommand,
+        "UNKNOWN": UnknownCommand,
+        # These intents are kept but don't create commands (handled elsewhere):
+        # "MODIFY_ITEM": Handled as RemoveItemCommand + AddItemCommand
+        # "SET_QUANTITY": Handled as RemoveItemCommand + AddItemCommand  
     }
     
     @classmethod
@@ -58,12 +59,8 @@ class CommandFactory:
         slots = intent_data.get("slots", {})
         
         if intent not in cls.INTENT_TO_COMMAND:
-            # Default to AnswerQuestionCommand for unsupported intents
-            return AnswerQuestionCommand(
-                restaurant_id=restaurant_id,
-                order_id=order_id,
-                question=f"Sorry, I don't understand '{intent}'. Could you please rephrase?"
-            )
+            # These intents don't create commands - they're handled elsewhere
+            return None
         
         command_class = cls.INTENT_TO_COMMAND[intent]
         
@@ -75,26 +72,22 @@ class CommandFactory:
                 return cls._create_remove_item_command(command_class, slots, restaurant_id, order_id)
             elif intent == "CLEAR_ORDER":
                 return cls._create_clear_order_command(command_class, restaurant_id, order_id)
-            elif intent == "MODIFY_ITEM":
-                return cls._create_modify_item_command(command_class, slots, restaurant_id, order_id)
-            elif intent == "SET_QUANTITY":
-                return cls._create_set_quantity_command(command_class, slots, restaurant_id, order_id)
             elif intent == "CONFIRM_ORDER":
                 return cls._create_confirm_order_command(command_class, restaurant_id, order_id)
             elif intent == "REPEAT":
                 return cls._create_repeat_command(command_class, slots, restaurant_id, order_id)
-            elif intent in ["QUESTION", "SMALL_TALK", "UNKNOWN"]:
+            elif intent == "QUESTION":
                 return cls._create_question_command(command_class, slots, restaurant_id, order_id)
+            elif intent == "SMALL_TALK":
+                return cls._create_small_talk_command(command_class, slots, restaurant_id, order_id)
+            elif intent == "UNKNOWN":
+                return cls._create_unknown_command(command_class, slots, restaurant_id, order_id)
             else:
                 return None
                 
         except Exception as e:
-            # If command creation fails, return a question command asking for clarification
-            return AnswerQuestionCommand(
-                restaurant_id=restaurant_id,
-                order_id=order_id,
-                question=f"I had trouble processing that request. Could you please try again? ({str(e)})"
-            )
+            # If command creation fails, return None (handled elsewhere)
+            return None
     
     @classmethod
     def _create_add_item_command(cls, command_class, slots: Dict[str, Any], restaurant_id: int, order_id: int):
@@ -102,7 +95,7 @@ class CommandFactory:
         return command_class(
             restaurant_id=restaurant_id,
             order_id=order_id,
-            menu_item_id=slots.get("item_id"),
+            menu_item_id=slots.get("menu_item_id"),
             quantity=slots.get("quantity", 1),
             size=slots.get("size"),
             modifiers=slots.get("modifiers", []),
@@ -127,25 +120,6 @@ class CommandFactory:
             order_id=order_id
         )
     
-    @classmethod
-    def _create_modify_item_command(cls, command_class, slots: Dict[str, Any], restaurant_id: int, order_id: int):
-        """Create ModifyItemCommand from slots"""
-        return command_class(
-            restaurant_id=restaurant_id,
-            order_id=order_id,
-            target_ref=slots.get("target_ref", "last_item"),
-            changes=slots.get("changes", [])
-        )
-    
-    @classmethod
-    def _create_set_quantity_command(cls, command_class, slots: Dict[str, Any], restaurant_id: int, order_id: int):
-        """Create SetQuantityCommand from slots"""
-        return command_class(
-            restaurant_id=restaurant_id,
-            order_id=order_id,
-            target_ref=slots.get("target_ref", "last_item"),
-            quantity=slots.get("quantity", 1)
-        )
     
     @classmethod
     def _create_confirm_order_command(cls, command_class, restaurant_id: int, order_id: int):
@@ -161,19 +135,40 @@ class CommandFactory:
         return command_class(
             restaurant_id=restaurant_id,
             order_id=order_id,
-            target_ref=slots.get("target_ref", "last_item"),
-            scope=slots.get("scope", "last_item")
+            scope=slots.get("scope", "full_order"),
+            target_ref=slots.get("target_ref", "last_item")
         )
     
     @classmethod
     def _create_question_command(cls, command_class, slots: Dict[str, Any], restaurant_id: int, order_id: int):
-        """Create AnswerQuestionCommand from slots"""
-        question = slots.get("question", "How can I help you?")
+        """Create QuestionCommand from slots"""
         return command_class(
             restaurant_id=restaurant_id,
             order_id=order_id,
-            question=question
+            question=slots.get("question", "How can I help you?"),
+            category=slots.get("category", "general")
         )
+    
+    @classmethod
+    def _create_small_talk_command(cls, command_class, slots: Dict[str, Any], restaurant_id: int, order_id: int):
+        """Create SmallTalkCommand from slots"""
+        return command_class(
+            restaurant_id=restaurant_id,
+            order_id=order_id,
+            user_input=slots.get("user_input", ""),
+            response_type=slots.get("response_type", "general")
+        )
+    
+    @classmethod
+    def _create_unknown_command(cls, command_class, slots: Dict[str, Any], restaurant_id: int, order_id: int):
+        """Create UnknownCommand from slots"""
+        return command_class(
+            restaurant_id=restaurant_id,
+            order_id=order_id,
+            user_input=slots.get("user_input", ""),
+            clarifying_question=slots.get("clarifying_question", "I'm sorry, I didn't understand. Could you please repeat that?")
+        )
+    
     
     @classmethod
     def get_supported_intents(cls) -> List[str]:

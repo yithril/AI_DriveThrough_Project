@@ -5,7 +5,7 @@ Session validation models for conversation workflow state management.
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
-from app.core.state_machine import ConversationState
+from app.models.state_machine_models import ConversationState
 
 
 class ConversationContextData(BaseModel):

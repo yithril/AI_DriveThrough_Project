@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class TTSService:
+class TextToSpeechService:
     """
     TTS service that handles text-to-speech generation
     """

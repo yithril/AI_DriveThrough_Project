@@ -12,7 +12,7 @@ from ..models.language import Language
 from ..agents.prompts.drive_thru_context import get_drive_thru_context, get_restaurant_context
 
 
-class SpeechService:
+class SpeechToTextService:
     """
     Service for converting audio to text using OpenAI Whisper with multi-language support
     """

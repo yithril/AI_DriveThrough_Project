@@ -27,18 +27,14 @@ class ChangeOperation(BaseModel):
     value: str = Field(..., description="Value for the operation")
 
 
-class CommandContract(BaseModel):
+class IntentClassificationResult(BaseModel):
     """
-    Fixed JSON schema for LLM intent classification output
+    Simple JSON schema for LLM intent classification output
     
-    This is the contract that the LLM must follow when classifying user intents
+    Just classify the intent - no complex parsing needed
     """
     intent: IntentType = Field(..., description="The classified intent")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score 0-1")
-    slots: Dict[str, Any] = Field(default_factory=dict, description="Intent-specific parameters")
-    needs_clarification: bool = Field(default=False, description="Whether clarification is needed")
-    clarifying_question: str = Field(default="", description="Question to ask for clarification")
-    notes: str = Field(default="", description="Internal notes for logging (ignored at runtime)")
 
 
 class AddItemSlots(BaseModel):
@@ -98,7 +94,7 @@ SLOT_SCHEMAS = {
 }
 
 
-def validate_command_contract(data: Dict[str, Any]) -> CommandContract:
+def validate_command_contract(data: Dict[str, Any]) -> IntentClassificationResult:
     """
     Validate and parse command contract from LLM output
     
@@ -113,7 +109,7 @@ def validate_command_contract(data: Dict[str, Any]) -> CommandContract:
     """
     try:
         # Parse the main contract
-        contract = CommandContract(**data)
+        contract = IntentClassificationResult(**data)
         
         # Validate slots against intent-specific schema
         if contract.intent in SLOT_SCHEMAS:
@@ -151,58 +147,21 @@ def get_command_contract_schema() -> Dict[str, Any]:
             "slots": {
                 "type": "object",
                 "description": "Intent-specific parameters",
-                "properties": {
-                    # ADD_ITEM slots
-                    "item_name_raw": {"type": "string", "description": "User's original words for the item"},
-                    "item_id": {"type": "integer", "description": "Canonical menu item ID"},
-                    "quantity": {"type": "integer", "minimum": 1, "default": 1},
-                    "size": {"type": "string", "enum": ["small", "medium", "large"], "description": "Item size"},
-                    "modifiers": {"type": "array", "items": {"type": "string"}, "description": "Modifiers like no_pickles, extra_ketchup"},
-                    "combo": {"type": "boolean", "default": False},
-                    "drink_id": {"type": "integer", "description": "Drink ID if combo"},
-                    "sides": {"type": "array", "items": {"type": "integer"}, "description": "Side item IDs"},
-                    "special_instructions": {"type": "string", "description": "Special cooking instructions"},
-                    
-                    # REMOVE_ITEM slots
-                    "order_item_id": {"type": "integer", "description": "Direct order item ID"},
-                    "target_ref": {"type": "string", "description": "Target reference like last_item, line_1"},
-                    
-                    # MODIFY_ITEM slots
-                    "changes": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "op": {"type": "string", "enum": ["set_size", "add_modifier", "remove_modifier", "set_quantity", "add_special_instruction"]},
-                                "value": {"type": "string"}
-                            },
-                            "required": ["op", "value"]
-                        }
-                    },
-                    
-                    # REPEAT slots
-                    "scope": {"type": "string", "enum": ["last_item", "full_order"], "default": "last_item"},
-                    
-                    # QUESTION/SMALL_TALK slots
-                    "question": {"type": "string", "description": "Question or response to user"}
-                }
+                "additionalProperties": False
             },
             "needs_clarification": {
                 "type": "boolean",
-                "default": False,
                 "description": "Whether clarification is needed"
             },
             "clarifying_question": {
                 "type": "string",
-                "default": "",
                 "description": "Question to ask for clarification"
             },
             "notes": {
                 "type": "string",
-                "default": "",
                 "description": "Internal notes for logging"
             }
         },
         "required": ["intent", "confidence"],
-        "additionalProperties": false
+        "additionalProperties": False
     }

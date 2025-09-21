@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .base_command import BaseCommand
 from .command_context import CommandContext
 from ..dto.order_result import OrderResult
-from ..services.order_service import OrderService
 
 
 # These will be validated against the actual menu item's allowed modifiers and sizes
@@ -63,6 +62,7 @@ class AddItemCommand(BaseCommand):
         try:
             # Add item to order using OrderService from context
             result = await context.order_service.add_item_to_order(
+                db=db,
                 order_id=context.get_order_id(),
                 menu_item_id=self.menu_item_id,
                 quantity=self.quantity,

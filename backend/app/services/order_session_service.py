@@ -12,7 +12,7 @@ from ..models.order import Order, OrderStatus
 from ..models.order_item import OrderItem
 from ..models.session_models import ConversationSessionData
 from ..agents.state import ConversationWorkflowState
-from ..core.state_machine import ConversationState, OrderState, ConversationContext
+from ..models.state_machine_models import ConversationState, OrderState, ConversationContext
 from datetime import datetime
 import json
 import logging

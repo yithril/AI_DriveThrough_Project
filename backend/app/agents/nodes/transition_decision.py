@@ -7,12 +7,13 @@ Routes based on state machine rules and intent type.
 
 from typing import Dict, Any
 from app.agents.state import ConversationWorkflowState
-from app.core.state_machine import ConversationState
+from app.models.state_machine_models import ConversationState
+from app.core.state_machine import DriveThruStateMachine
 
 
 async def transition_decision_node(state: ConversationWorkflowState) -> ConversationWorkflowState:
     """
-    Decide what action to take based on intent and current state.
+    Decide what action to take based on intent and current state using the state machine.
     
     Args:
         state: Current conversation workflow state
@@ -20,18 +21,19 @@ async def transition_decision_node(state: ConversationWorkflowState) -> Conversa
     Returns:
         Updated state with transition decision
     """
-    # TODO: Implement transition decision logic
-    # - Check if intent requires commands (ADD_ITEM, REMOVE_ITEM, etc.)
-    # - Check if intent is just a response (CONFIRM_ORDER, QUESTION, etc.)
-    # - Determine target state based on current state + intent
-    # - Set action_type: "commands_needed", "canned_response", "clarification_needed"
+    # Initialize state machine
+    state_machine = DriveThruStateMachine()
     
-    # Stub implementation
-    if state.intent_type and state.intent_type in ["ADD_ITEM", "REMOVE_ITEM", "MODIFY_ITEM"]:
-        state.target_state = ConversationState.ORDERING
-        # We'll add action_type to state later
-    else:
-        state.target_state = state.current_state  # No state change needed
+    # Get the transition decision from state machine
+    transition = state_machine.get_transition(state.current_state, state.intent_type)
+    
+    # Update state with transition results
+    state.target_state = transition.target_state
+    state.response_phrase_type = transition.response_phrase_type
+    
+    # Store transition info for routing decisions
+    state.transition_requires_command = transition.requires_command
+    state.transition_is_valid = transition.is_valid
     
     return state
 
@@ -46,12 +48,8 @@ def should_continue_after_transition_decision(state: ConversationWorkflowState) 
     Returns:
         Next node name: "command_agent" or "canned_response"
     """
-    # TODO: Implement routing logic
-    # - Commands needed → "command_agent"
-    # - Just a response → "canned_response"
-    
-    # Stub implementation
-    if state.intent_type and state.intent_type in ["ADD_ITEM", "REMOVE_ITEM", "MODIFY_ITEM"]:
+    # Check if the transition requires command execution
+    if hasattr(state, 'transition_requires_command') and state.transition_requires_command:
         return "command_agent"
     else:
         return "canned_response"

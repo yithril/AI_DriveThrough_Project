@@ -11,11 +11,8 @@ import uuid
 from ..dto.order_result import OrderResult
 from ..models.language import Language
 from ..agents.state import ConversationWorkflowState
-from .speech_service import SpeechService
 from .validation_interface import ValidationServiceInterface
 from .order_session_service import OrderSessionService
-from .file_storage_service import FileStorageService
-from .canned_audio_service import CannedAudioService
 from ..agents.workflow import ConversationWorkflow
 from ..core.logging import get_logger
 from ..constants.audio_phrases import AudioPhraseType
@@ -29,18 +26,14 @@ class AudioPipelineService:
     
     def __init__(
         self,
-        speech_service: SpeechService,
+        voice_service,  # VoiceService - unified audio service
         validation_service: ValidationServiceInterface,
         order_session_service: OrderSessionService,
-        file_storage_service: FileStorageService,
-        canned_audio_service: CannedAudioService,
         conversation_workflow: ConversationWorkflow
     ):
-        self.speech_service = speech_service
+        self.voice_service = voice_service
         self.validation_service = validation_service
         self.order_session_service = order_session_service
-        self.file_storage_service = file_storage_service
-        self.canned_audio_service = canned_audio_service
         self.conversation_workflow = conversation_workflow
         self.logger = get_logger(__name__)
     
@@ -257,36 +250,42 @@ class AudioPipelineService:
             return OrderResult.error(f"File validation failed: {str(e)}")
     
     async def _store_audio_file(self, audio_file: UploadFile, audio_data: bytes, restaurant_id: int, session_id: str) -> OrderResult:
-        """Store audio file in S3"""
-        store_result = await self.file_storage_service.store_file(
-            file_data=audio_data,
-            file_name=audio_file.filename,
+        """Store audio file via VoiceService"""
+        file_id = await self.voice_service.store_uploaded_audio(
+            audio_data=audio_data,
+            filename=audio_file.filename,
             content_type=audio_file.content_type,
             restaurant_id=restaurant_id,
-            order_id=None,  # We don't have order_id anymore, use session_id for organization
-            metadata={"session_id": session_id}  # Store session_id in metadata
+            session_id=session_id
         )
         
-        if not store_result.success:
-            return OrderResult.error(f"Failed to store audio file: {store_result.message}")
-        
-        return store_result
+        if file_id:
+            return OrderResult.success("Audio file stored successfully", data={"file_id": file_id})
+        else:
+            return OrderResult.error("Failed to store audio file")
     
     async def _transcribe_audio(self, audio_file: UploadFile, audio_data: bytes, language: str) -> OrderResult:
         """Transcribe audio to text"""
         audio_format = audio_file.content_type.split('/')[-1] if audio_file.content_type else "webm"
         selected_language = Language.from_code(language)
         
-        speech_result = await self.speech_service.transcribe_audio(
-            audio_data, 
-            audio_format, 
-            selected_language
+        transcript = await self.voice_service.transcribe_audio(
+            audio_data=audio_data,
+            audio_format=audio_format,
+            language=language
         )
         
-        if not speech_result.success:
-            return OrderResult.error(f"Speech transcription failed: {speech_result.message}")
-        
-        return speech_result
+        if transcript:
+            return OrderResult.success(
+                "Audio transcribed successfully", 
+                data={
+                    'transcript': transcript,
+                    'confidence': 0,  # VoiceService doesn't return confidence yet
+                    'duration': 0     # VoiceService doesn't return duration yet
+                }
+            )
+        else:
+            return OrderResult.error("Transcription failed")
     
     async def _validate_transcript(self, transcript: str) -> OrderResult:
         """Validate transcript with safety validation"""
@@ -303,17 +302,14 @@ class AudioPipelineService:
             return OrderResult.error(f"Transcript validation failed: {str(e)}")
     
     async def _store_transcript(self, file_id: str, transcript: str, speech_data: Dict[str, Any], restaurant_id: int, session_id: str) -> None:
-        """Store transcript with metadata"""
-        await self.file_storage_service.store_transcript(
+        """Store transcript with metadata via VoiceService"""
+        await self.voice_service.store_transcript(
             file_id=file_id,
             transcript=transcript,
             metadata={
                 "duration": speech_data.get("duration", 0),
                 "confidence": speech_data.get("confidence", 0),
-                "restaurant_id": restaurant_id,
                 "session_id": session_id
             },
-            restaurant_id=restaurant_id,
-            order_id=None,  # We don't have order_id anymore
-            metadata_override={"session_id": session_id}  # Store session_id in metadata
+            restaurant_id=restaurant_id
         )

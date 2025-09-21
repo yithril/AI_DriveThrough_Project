@@ -19,6 +19,26 @@ class AudioPhraseType(Enum):
     ORDER_CONFIRM = "order_confirm"
     ORDER_COMPLETE = "order_complete"
     SCREEN_CONFIRM = "screen_confirm"
+    
+    # State machine specific phrases
+    ORDER_SUMMARY = "order_summary"
+    ORDER_REPEAT = "order_repeat"
+    CONTINUE_ORDERING = "continue_ordering"
+    NO_ORDER_YET = "no_order_yet"
+    TAKE_YOUR_TIME = "take_your_time"
+    READY_TO_ORDER = "ready_to_order"
+    ADD_ITEMS_FIRST = "add_items_first"
+    HOW_CAN_I_HELP = "how_can_i_help"
+    DIDNT_UNDERSTAND = "didnt_understand"
+    ORDER_READY = "order_ready"
+    ORDER_ALREADY_CONFIRMED = "order_already_confirmed"
+    DRIVE_TO_WINDOW = "drive_to_window"
+    ORDER_BEING_PREPARED = "order_being_prepared"
+    CANT_HELP_RIGHT_NOW = "cant_help_right_now"
+    WELCOME_MENU = "welcome_menu"
+    ORDER_CORRECT = "order_correct"
+    ORDER_NOT_UNDERSTOOD = "order_not_understood"
+    ORDER_PREPARED_WINDOW = "order_prepared_window"
 
 
 class AudioPhraseConstants:
@@ -54,7 +74,27 @@ class AudioPhraseConstants:
             AudioPhraseType.SUGGESTION_3: "Would you like to add a drink to your order?",
             AudioPhraseType.ORDER_CONFIRM: "Is that correct?",
             AudioPhraseType.ORDER_COMPLETE: "Perfect! Your order is ready.",
-            AudioPhraseType.SCREEN_CONFIRM: "Does everything on your screen look correct?"
+            AudioPhraseType.SCREEN_CONFIRM: "Does everything on your screen look correct?",
+            
+            # State machine specific phrases
+            AudioPhraseType.ORDER_SUMMARY: "Let me confirm your order: [order summary]",
+            AudioPhraseType.ORDER_REPEAT: "Here's your current order: [order summary]",
+            AudioPhraseType.CONTINUE_ORDERING: "No problem! What else would you like to order?",
+            AudioPhraseType.NO_ORDER_YET: "You don't have an order yet. What would you like to order?",
+            AudioPhraseType.TAKE_YOUR_TIME: "Take your time! Let me know when you're ready to order.",
+            AudioPhraseType.READY_TO_ORDER: "I'm here when you're ready to order!",
+            AudioPhraseType.ADD_ITEMS_FIRST: "Please add some items to your order first.",
+            AudioPhraseType.HOW_CAN_I_HELP: "What can I help you with today?",
+            AudioPhraseType.DIDNT_UNDERSTAND: "I'm sorry, I didn't understand. Could you please try again?",
+            AudioPhraseType.ORDER_READY: "Here's your order: [order summary]. Is this correct?",
+            AudioPhraseType.ORDER_ALREADY_CONFIRMED: "Your order is already confirmed and being prepared!",
+            AudioPhraseType.DRIVE_TO_WINDOW: "Drive up to the next window please!",
+            AudioPhraseType.ORDER_BEING_PREPARED: "Your order is already being prepared. Is there anything else I can help you with?",
+            AudioPhraseType.CANT_HELP_RIGHT_NOW: "I'm sorry, I can't help with that right now. Please let me know what you'd like to order.",
+            AudioPhraseType.WELCOME_MENU: f"Welcome to {restaurant_name or '{restaurant}'}! Take your time looking at our menu.",
+            AudioPhraseType.ORDER_CORRECT: "Is this order correct?",
+            AudioPhraseType.ORDER_NOT_UNDERSTOOD: "I'm sorry, I didn't understand. Is this order correct?",
+            AudioPhraseType.ORDER_PREPARED_WINDOW: "Your order: [order summary] is being prepared. Drive up to the next window!"
         }
         return phrases.get(phrase_type, "")
     

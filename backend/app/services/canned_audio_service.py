@@ -7,7 +7,7 @@ from io import BytesIO
 
 from ..constants.audio_phrases import AudioPhraseType, AudioPhraseConstants
 from .file_storage_service import FileStorageService
-from .tts_service import TTSService
+from .text_to_speech_service import TextToSpeechService
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class CannedAudioService:
     """Service for managing pre-generated audio phrases"""
     
-    def __init__(self, file_storage: FileStorageService, tts_service: TTSService):
+    def __init__(self, file_storage: FileStorageService, tts_service: TextToSpeechService):
         self.file_storage = file_storage
         self.tts_service = tts_service
     

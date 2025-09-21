@@ -177,11 +177,12 @@ class OrderResult:
         return result
 
 
-class FollowUpAction(str, Enum):
-    """Recommended follow-up action for AI agent"""
-    CONTINUE = "continue"      # Continue with successful commands, mention issues
-    ASK = "ask"               # Ask user for clarification or substitution
-    STOP = "stop"             # Stop processing, ask user to retry
+@dataclass
+class ResponsePayload:
+    """Standardized response payload for router - describes what happened, not what to do next"""
+    enum_key: str                     # Template identifier for response generation
+    args: Dict[str, Any]              # Template variables for response generation
+    telemetry: Dict[str, Any]         # Logging and debugging data
 
 
 @dataclass
@@ -191,6 +192,7 @@ class CommandBatchResult:
     Provides summary statistics and follow-up recommendations for AI
     """
     
+    # Core batch statistics
     results: List[OrderResult]
     total_commands: int
     successful_commands: int
@@ -198,12 +200,20 @@ class CommandBatchResult:
     warnings_count: int
     errors_by_category: Dict[ErrorCategory, int]
     errors_by_code: Dict[ErrorCode, int]
-    follow_up_action: FollowUpAction
     summary_message: str
     
+    # Router-friendly fields
+    command_family: str                    # "ADD_ITEM", "REMOVE_ITEM", "QUESTION", etc.
+    batch_outcome: str                     # "ALL_SUCCESS", "PARTIAL_SUCCESS_ASK", etc.
+    first_error_code: Optional[str]        # "ITEM_UNAVAILABLE", "SIZE_NOT_AVAILABLE", etc.
+    response_payload: ResponsePayload      # Standardized response payload
+    
     @classmethod
-    def from_results(cls, results: List[OrderResult], command_names: Optional[List[str]] = None) -> "CommandBatchResult":
-        """Create CommandBatchResult from a list of OrderResult objects"""
+    def from_results(cls, results: List[OrderResult], command_family: str, 
+                    batch_outcome: str, first_error_code: Optional[str],
+                    response_payload: ResponsePayload, 
+                    command_names: Optional[List[str]] = None) -> "CommandBatchResult":
+        """Create CommandBatchResult from a list of OrderResult objects with router-friendly fields"""
         total_commands = len(results)
         successful_commands = sum(1 for r in results if r.is_success)
         failed_commands = sum(1 for r in results if r.is_error)
@@ -219,9 +229,6 @@ class CommandBatchResult:
             if result.error_code:
                 errors_by_code[result.error_code] += 1
         
-        # Determine follow-up action based on error types
-        follow_up_action = cls._determine_follow_up_action(errors_by_category, failed_commands, total_commands)
-        
         # Generate summary message
         summary_message = cls._generate_summary_message(
             total_commands, successful_commands, failed_commands, 
@@ -229,6 +236,7 @@ class CommandBatchResult:
         )
         
         return cls(
+            # Core batch statistics
             results=results,
             total_commands=total_commands,
             successful_commands=successful_commands,
@@ -236,37 +244,15 @@ class CommandBatchResult:
             warnings_count=warnings_count,
             errors_by_category=dict(errors_by_category),
             errors_by_code=dict(errors_by_code),
-            follow_up_action=follow_up_action,
-            summary_message=summary_message
+            summary_message=summary_message,
+            
+            # Router-friendly fields
+            command_family=command_family,
+            batch_outcome=batch_outcome,
+            first_error_code=first_error_code,
+            response_payload=response_payload
         )
     
-    @staticmethod
-    def _determine_follow_up_action(errors_by_category: Dict[ErrorCategory, int], 
-                                  failed_commands: int, total_commands: int) -> FollowUpAction:
-        """Determine the recommended follow-up action based on error analysis"""
-        if failed_commands == 0:
-            # All commands succeeded (possibly with warnings)
-            return FollowUpAction.CONTINUE
-        
-        # Check for system errors first (most critical)
-        if ErrorCategory.SYSTEM in errors_by_category:
-            return FollowUpAction.STOP
-        
-        # Check for validation errors (need clarification)
-        if ErrorCategory.VALIDATION in errors_by_category:
-            return FollowUpAction.ASK
-        
-        # Check for business errors (can suggest alternatives)
-        if ErrorCategory.BUSINESS in errors_by_category:
-            return FollowUpAction.ASK
-        
-        # If we have successful commands, continue with those
-        successful_commands = total_commands - failed_commands
-        if successful_commands > 0:
-            return FollowUpAction.CONTINUE
-        
-        # All commands failed with unknown error types
-        return FollowUpAction.STOP
     
     @staticmethod
     def _generate_summary_message(total_commands: int, successful_commands: int, 
@@ -339,21 +325,41 @@ class CommandBatchResult:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         return {
+            # Core batch statistics
             "total_commands": self.total_commands,
             "successful_commands": self.successful_commands,
             "failed_commands": self.failed_commands,
             "warnings_count": self.warnings_count,
             "errors_by_category": {cat.value: count for cat, count in self.errors_by_category.items()},
             "errors_by_code": {code.value: count for code, count in self.errors_by_code.items()},
-            "follow_up_action": self.follow_up_action.value,
             "summary_message": self.summary_message,
             "results": [result.to_dict() for result in self.results],
             "has_successes": self.has_successes,
             "has_failures": self.has_failures,
             "all_succeeded": self.all_succeeded,
-            "all_failed": self.all_failed
+            "all_failed": self.all_failed,
+            
+            # Router-friendly fields
+            "command_family": self.command_family,
+            "batch_outcome": self.batch_outcome,
+            "first_error_code": self.first_error_code,
+            "response_payload": {
+                "enum_key": self.response_payload.enum_key,
+                "args": self.response_payload.args,
+                "options": [
+                    {
+                        "id": opt.id,
+                        "label": opt.label,
+                        "intent": opt.intent,
+                        "next_state": opt.next_state,
+                        "command_payload": opt.command_payload
+                    } for opt in self.response_payload.options
+                ],
+                "next_state": self.response_payload.next_state,
+                "telemetry": self.response_payload.telemetry
+            }
         }
     
     def __str__(self) -> str:
         """String representation for logging"""
-        return f"CommandBatchResult: {self.summary_message} | Action: {self.follow_up_action.value}"
+        return f"CommandBatchResult: {self.summary_message} | Family: {self.command_family} | Outcome: {self.batch_outcome}"

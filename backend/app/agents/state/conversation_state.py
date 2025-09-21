@@ -9,9 +9,10 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from app.core.state_machine import ConversationState, OrderState, ConversationContext
-from app.commands.command_contract import IntentType
+from app.models.state_machine_models import ConversationState, OrderState, ConversationContext
+from app.commands.intent_classification_schema import IntentType
 from app.dto.order_result import CommandBatchResult
+from app.constants.audio_phrases import AudioPhraseType
 
 
 @dataclass
@@ -35,13 +36,28 @@ class ConversationWorkflowState:
     conversation_history: List[Dict[str, Any]] = field(default_factory=list)
     current_state: ConversationState = ConversationState.IDLE
     target_state: Optional[ConversationState] = None
-    order_state: OrderState = field(default_factory=OrderState)
-    conversation_context: ConversationContext = field(default_factory=ConversationContext)
+    order_state: OrderState = field(default_factory=lambda: OrderState(
+        line_items=[],
+        last_mentioned_item_ref=None,
+        totals={}
+    ))
+    conversation_context: ConversationContext = field(default_factory=lambda: ConversationContext(
+        turn_counter=0,
+        last_action_uuid=None,
+        thinking_since=None,
+        timeout_at=None,
+        expectation="free_form_ordering"
+    ))
     
     # Intermediate results that get populated as we go through nodes
     intent_type: Optional[IntentType] = None
     intent_confidence: float = 0.0
     intent_slots: Dict[str, Any] = field(default_factory=dict)
+    
+    # State machine transition results
+    transition_requires_command: bool = False
+    transition_is_valid: bool = True
+    response_phrase_type: Optional[AudioPhraseType] = None
     
     commands: List[Dict[str, Any]] = field(default_factory=list)
     command_batch_result: Optional[CommandBatchResult] = None

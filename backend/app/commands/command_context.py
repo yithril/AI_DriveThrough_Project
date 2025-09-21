@@ -1,43 +1,62 @@
 """
-Command context that provides scoped services to commands
+Command Context - Pure Data Holder
+
+This is a simple data container that holds all the information commands need.
+No service imports, no logic, just data.
 """
 
-from typing import Optional
-from ..services.order_session_interface import OrderSessionInterface
-from ..services.order_service import OrderService
+from typing import Optional, Any, Dict
+from dataclasses import dataclass, field
 
 
+@dataclass
 class CommandContext:
     """
-    Context object that provides scoped services to commands
+    Pure data holder for command execution context.
     
-    Encapsulates all the services a command needs, scoped to the current
-    order/session/tenant. Built by the CommandInvoker from DI container.
+    Contains:
+    - Database session
+    - Session/tenant identifiers  
+    - Service placeholders (populated by executor)
+    - Any other runtime data commands need
     """
     
-    def __init__(
-        self,
-        order_session_service: OrderSessionInterface,
-        order_service: OrderService,
-        restaurant_id: int,
-        order_id: Optional[int] = None,
-        session_id: Optional[str] = None
-    ):
-        """
-        Initialize command context with scoped services
-        
-        Args:
-            order_session_service: Service for order/session operations
-            order_service: Order service for business logic operations
-            restaurant_id: Restaurant ID for this context
-            order_id: Optional order ID for order-specific operations
-            session_id: Optional session ID for session-specific operations
-        """
-        self.order_session_service = order_session_service
-        self.order_service = order_service
-        self.restaurant_id = restaurant_id
-        self.order_id = order_id
-        self.session_id = session_id
+    # Core identifiers
+    session_id: str
+    restaurant_id: int
+    user_id: Optional[str] = None
+    order_id: Optional[int] = None
+    
+    # Database session (populated by executor)
+    db_session: Optional[Any] = None
+    
+    # Service placeholders (populated by executor)
+    order_service: Optional[Any] = None
+    order_session_service: Optional[Any] = None
+    customization_validator: Optional[Any] = None
+    
+    # Runtime data
+    current_order: Optional[Dict[str, Any]] = None
+    conversation_context: Optional[Dict[str, Any]] = None
+    
+    # Additional metadata
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    def set_order_service(self, service: Any) -> None:
+        """Set the order service (called by executor)"""
+        self.order_service = service
+    
+    def set_order_session_service(self, service: Any) -> None:
+        """Set the order session service (called by executor)"""
+        self.order_session_service = service
+    
+    def set_customization_validator(self, validator: Any) -> None:
+        """Set the customization validator (called by executor)"""
+        self.customization_validator = validator
+    
+    def set_db_session(self, session: Any) -> None:
+        """Set the database session (called by executor)"""
+        self.db_session = session
     
     @property
     def is_order_scoped(self) -> bool:
@@ -88,11 +107,17 @@ class CommandContext:
             CommandContext: New context with order ID
         """
         return CommandContext(
-            order_session_service=self.order_session_service,
-            order_service=self.order_service,
+            session_id=self.session_id,
             restaurant_id=self.restaurant_id,
+            user_id=self.user_id,
             order_id=order_id,
-            session_id=self.session_id
+            db_session=self.db_session,
+            order_service=self.order_service,
+            order_session_service=self.order_session_service,
+            customization_validator=self.customization_validator,
+            current_order=self.current_order,
+            conversation_context=self.conversation_context,
+            metadata=self.metadata.copy()
         )
     
     def with_session_id(self, session_id: str) -> 'CommandContext':
@@ -106,9 +131,15 @@ class CommandContext:
             CommandContext: New context with session ID
         """
         return CommandContext(
-            order_session_service=self.order_session_service,
-            order_service=self.order_service,
+            session_id=session_id,
             restaurant_id=self.restaurant_id,
+            user_id=self.user_id,
             order_id=self.order_id,
-            session_id=session_id
+            db_session=self.db_session,
+            order_service=self.order_service,
+            order_session_service=self.order_session_service,
+            customization_validator=self.customization_validator,
+            current_order=self.current_order,
+            conversation_context=self.conversation_context,
+            metadata=self.metadata.copy()
         )

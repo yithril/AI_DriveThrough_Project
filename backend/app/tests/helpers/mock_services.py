@@ -223,26 +223,65 @@ class MockCustomizationValidationService:
         return results
 
 
+class MockOrderService:
+    """Mock OrderService for testing"""
+    
+    def __init__(self):
+        pass
+    
+    async def add_item_to_order(self, db, order_id: str, menu_item_id: int, quantity: int, 
+                               customizations=None, special_instructions=None, size=None):
+        """Mock add item to order - always returns success for testing"""
+        from app.dto.order_result import OrderResult
+        return OrderResult.success("Item added successfully")
+
+
 class MockContainer:
     """Mock container that provides services with mocked dependencies"""
     
     def __init__(self):
         """Initialize mock container with mocked services"""
-        from app.services.order_service import OrderService
-        
         # Create mock services
         self.mock_order_session_service = MockOrderSessionService()
         self.mock_customization_validator = MockCustomizationValidationService()
+        self.mock_order_service = MockOrderService()
         
-        # Create OrderService with mocked dependencies
-        self.order_service = OrderService(
-            self.mock_order_session_service,
-            self.mock_customization_validator
-        )
+        # Use mock OrderService instead of real one
+        self._order_service = self.mock_order_service
     
+    def order_service(self):
+        """Get the mocked OrderService"""
+        return self._order_service
+    
+    def order_session_service(self):
+        """Get the mock OrderSessionService"""
+        return self.mock_order_session_service
+    
+    def customization_validator(self):
+        """Get the mock CustomizationValidationService"""
+        return self.mock_customization_validator
+    
+    def get_db(self):
+        """Mock database session generator"""
+        async def mock_db_generator():
+            # Return a mock database session
+            mock_session = AsyncMock()
+            yield mock_session
+        
+        return mock_db_generator()
+    
+    def get_db_mock(self):
+        """Get the mock database session for testing"""
+        return AsyncMock()
+    
+    def unit_of_work(self, db_session):
+        """Mock UnitOfWork factory"""
+        return MockUnitOfWork(db_session)
+    
+    # Legacy methods for backward compatibility
     def get_order_service(self):
         """Get the mocked OrderService"""
-        return self.order_service
+        return self._order_service
     
     def get_mock_order_session_service(self):
         """Get the mock OrderSessionService for test setup"""
