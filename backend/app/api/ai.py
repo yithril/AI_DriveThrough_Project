@@ -45,6 +45,37 @@ async def process_audio(
     Returns:
         dict: Simplified response with audio URL and session info
     """
+    # Validate audio file at controller level
+    if not audio_file:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Audio file is required"
+        )
+    
+    # Check file type
+    allowed_types = ["audio/webm", "audio/mp3", "audio/wav", "audio/mpeg", "audio/mp4", "audio/m4a"]
+    if audio_file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file type: {audio_file.content_type}. Allowed types: {', '.join(allowed_types)}"
+        )
+    
+    # Check file size (10MB max)
+    max_size = 10 * 1024 * 1024  # 10MB
+    if audio_file.size and audio_file.size > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File size exceeds 10MB limit"
+        )
+    
+    # Validate language code
+    valid_languages = ["en", "es"]
+    if language not in valid_languages:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid language '{language}'. Must be one of: {valid_languages}"
+        )
+    
     try:
         # Process audio through the complete pipeline
         workflow_state = await audio_pipeline_service.process_audio_pipeline(
@@ -57,12 +88,28 @@ async def process_audio(
         
         # Check if workflow processing had errors
         if workflow_state.has_errors():
-            # For now, return a generic error response
-            # In the future, we could categorize errors and return appropriate HTTP status codes
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Processing failed: {'; '.join(workflow_state.errors)}"
-            )
+            # Check error type and return appropriate HTTP status code
+            error_message = '; '.join(workflow_state.errors)
+            error_lower = error_message.lower()
+            
+            if any(keyword in error_lower for keyword in ['restaurant', 'session']) and 'not found' in error_lower:
+                # Resource not found (404)
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=error_message
+                )
+            elif any(keyword in error_lower for keyword in ['invalid', 'inactive']):
+                # Bad request format (400)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=error_message
+                )
+            else:
+                # Internal server error (500)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Processing failed: {error_message}"
+                )
         
         # Return simplified response to frontend
         return {
@@ -70,6 +117,7 @@ async def process_audio(
             "session_id": workflow_state.session_id,
             "audio_url": workflow_state.audio_url,
             "response_text": workflow_state.response_text,
+            "order_state_changed": workflow_state.order_state_changed,  # Tell frontend if order was modified
             "metadata": {
                 "processing_time": 0.0,  # TODO: Add actual timing
                 "cached": False,  # TODO: Add caching logic

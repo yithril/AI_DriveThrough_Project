@@ -707,3 +707,20 @@ class OrderSessionService(OrderSessionInterface):
         except Exception as e:
             logger.error(f"Failed to get current session data: {e}")
             return None
+    
+    async def session_exists(self, session_id: str) -> bool:
+        """
+        Check if a session exists.
+        
+        Args:
+            session_id: Session ID to check
+            
+        Returns:
+            bool: True if session exists, False otherwise
+        """
+        try:
+            session = await self.get_session(session_id)
+            return session is not None
+        except Exception as e:
+            logger.error(f"Failed to check if session exists: {e}")
+            return False

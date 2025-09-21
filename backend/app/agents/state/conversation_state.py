@@ -49,6 +49,9 @@ class ConversationWorkflowState:
     response_text: str = ""
     audio_url: Optional[str] = None
     
+    # Order state tracking
+    order_state_changed: bool = False  # True if order was modified during this turn
+    
     # Simple error tracking
     errors: List[str] = field(default_factory=list)
     

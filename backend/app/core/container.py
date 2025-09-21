@@ -65,21 +65,27 @@ class Container(containers.DeclarativeContainer):
         customization_validator=customization_validator
     )
     
-    # Audio pipeline service (orchestrates other services)
-    audio_pipeline_service = providers.Singleton(
-        "app.services.audio_pipeline_service.AudioPipelineService",
-        speech_service=speech_service,
-        validation_service=validation_service,
-        order_intent_processor=order_intent_processor,
-        file_storage_service=file_storage_service,
-        order_service=order_service
-    )
-    
     # Canned audio service (depends on file storage and TTS)
     canned_audio_service = providers.Singleton(
         "app.services.canned_audio_service.CannedAudioService",
         file_storage=file_storage_service,
         tts_service=tts_service
+    )
+    
+    # Conversation workflow (LangGraph workflow)
+    conversation_workflow = providers.Singleton(
+        "app.agents.workflow.ConversationWorkflow"
+    )
+    
+    # Audio pipeline service (orchestrates other services)
+    audio_pipeline_service = providers.Singleton(
+        "app.services.audio_pipeline_service.AudioPipelineService",
+        speech_service=speech_service,
+        validation_service=validation_service,
+        order_session_service=order_session_service,
+        file_storage_service=file_storage_service,
+        canned_audio_service=canned_audio_service,
+        conversation_workflow=conversation_workflow
     )
     
     # Import services (these need database sessions, so they're created per request)

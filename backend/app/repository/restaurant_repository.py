@@ -88,3 +88,19 @@ class RestaurantRepository(BaseRepository[Restaurant]):
             int: Number of active restaurants
         """
         return await self.count({"is_active": True})
+    
+    async def restaurant_exists_and_active(self, restaurant_id: int) -> bool:
+        """
+        Check if a restaurant exists and is active.
+        
+        Args:
+            restaurant_id: Restaurant ID to check
+            
+        Returns:
+            bool: True if restaurant exists and is active, False otherwise
+        """
+        try:
+            restaurant = await self.get_by_id(restaurant_id)
+            return restaurant is not None and getattr(restaurant, 'is_active', True)
+        except Exception:
+            return False
