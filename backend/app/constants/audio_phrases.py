@@ -3,6 +3,7 @@ Audio phrase constants for canned audio generation
 """
 from enum import Enum
 from typing import Dict, List
+from app.core.config import settings
 
 
 class AudioPhraseType(Enum):
@@ -58,8 +59,8 @@ class AudioPhraseType(Enum):
 class AudioPhraseConstants:
     """Constants for audio phrase generation and storage"""
     
-    # Standard voice for all canned audio
-    STANDARD_VOICE = "nova"
+    # Standard voice for all canned audio (configurable via TTS_VOICE env var)
+    STANDARD_VOICE = settings.TTS_VOICE
     
     # Audio file format
     AUDIO_FORMAT = "mp3"

@@ -1,0 +1,10 @@
+{
+  "test_number": 3,
+  "description": "Quantity limit response",
+  "text": "We can't do that many. How many would you like?",
+  "audio_file": "C:\\Coding\\AI_DriveThru\\backend\\app\\tests\\output\\tts\\tts-cache\\restaurant-1\\2d17c7c84802100ad515820e6560d250.mp3",
+  "filename": "quantity_limit.mp3",
+  "voice": "nova",
+  "language": "english",
+  "restaurant_id": 1
+}

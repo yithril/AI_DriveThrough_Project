@@ -7,12 +7,14 @@ interface VoiceRecorderProps {
   onRecordingComplete: (audioBlob: Blob) => void;
   onRecordingStart?: () => void;
   onRecordingStop?: () => void;
+  disabled?: boolean;
 }
 
 export default function VoiceRecorder({ 
   onRecordingComplete, 
   onRecordingStart, 
-  onRecordingStop 
+  onRecordingStop,
+  disabled = false
 }: VoiceRecorderProps) {
   const { theme } = useTheme();
   const [isRecording, setIsRecording] = useState(false);
@@ -121,7 +123,27 @@ export default function VoiceRecorder({
   }
 
   return (
-    <div className="text-center p-4">
+    <div className="text-center p-4 relative">
+      {/* Floating "Press and hold" tooltip */}
+      {!isRecording && !disabled && (
+        <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 z-10">
+          <div 
+            className="px-3 py-1 rounded-lg text-xs font-medium shadow-lg"
+            style={{ 
+              backgroundColor: theme.surface,
+              border: `1px solid ${theme.border.primary}`,
+              color: theme.text.primary
+            }}
+          >
+            Press and hold
+          </div>
+          <div 
+            className="w-2 h-2 transform rotate-45 mx-auto -mt-1"
+            style={{ backgroundColor: theme.surface }}
+          ></div>
+        </div>
+      )}
+      
       <div className="mb-4">
         <div 
           className={`w-20 h-20 mx-auto mb-3 rounded-full flex items-center justify-center transition-all duration-300 ${
@@ -155,7 +177,7 @@ export default function VoiceRecorder({
               Voice Order
             </p>
             <p className="text-sm" style={{ color: theme.text.secondary }}>
-              Click to start recording your order
+              {disabled ? 'AI is speaking...' : 'Click to start recording your order'}
             </p>
           </div>
         )}
@@ -163,27 +185,29 @@ export default function VoiceRecorder({
 
       <button
         onClick={isRecording ? stopRecording : startRecording}
+        disabled={disabled}
         className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
           isRecording ? 'hover:shadow-lg' : 'hover:shadow-xl'
-        }`}
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         style={{ 
-          background: isRecording ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : theme.button.primary,
+          background: isRecording ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 
+                     disabled ? theme.text.muted : theme.button.primary,
           color: 'white'
         }}
         onMouseEnter={(e) => {
-          if (!isRecording) {
+          if (!isRecording && !disabled) {
             e.currentTarget.style.background = theme.button.primaryHover;
             e.currentTarget.style.transform = 'translateY(-2px)';
           }
         }}
         onMouseLeave={(e) => {
-          if (!isRecording) {
+          if (!isRecording && !disabled) {
             e.currentTarget.style.background = theme.button.primary;
             e.currentTarget.style.transform = 'translateY(0)';
           }
         }}
       >
-        {isRecording ? 'Stop Recording' : 'Start Recording'}
+        {isRecording ? 'Stop Recording' : disabled ? 'AI is Speaking...' : 'Start Recording'}
       </button>
     </div>
   );

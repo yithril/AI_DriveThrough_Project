@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import OrderComponent from '@/components/OrderComponent';
+import VoiceOrderComponent from '@/components/VoiceOrderComponent';
 import CarControlComponent from '@/components/CarControlComponent';
 import MenuListComponent from '@/components/MenuListComponent';
 import RestaurantLogo from '@/components/RestaurantLogo';
@@ -13,6 +14,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 export default function MainLayout() {
   const { restaurant, menu, isLoading, error } = useData();
   const { theme } = useTheme();
+  const orderComponentRef = useRef<{ refreshOrder: () => void }>(null);
 
   if (isLoading) {
     return (
@@ -90,7 +92,20 @@ export default function MainLayout() {
         
         {/* Order Component */}
         <div className="flex-1 overflow-y-auto">
-          <OrderComponent />
+          <OrderComponent ref={orderComponentRef} />
+        </div>
+        
+        {/* Voice Order Component */}
+        <div 
+          className="p-4"
+          style={{ borderTop: `1px solid ${theme.border.primary}` }}
+        >
+          <VoiceOrderComponent 
+            onOrderChanged={() => {
+              // Refresh the order display when voice order changes
+              orderComponentRef.current?.refreshOrder();
+            }}
+          />
         </div>
       </div>
 

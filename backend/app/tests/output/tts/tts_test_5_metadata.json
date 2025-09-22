@@ -1,0 +1,10 @@
+{
+  "test_number": 5,
+  "description": "Partial success confirmation",
+  "text": "I added the quantum burger with extra onions and the strawberry milkshake to your order.",
+  "audio_file": "C:\\Coding\\AI_DriveThru\\backend\\app\\tests\\output\\tts\\tts-cache\\restaurant-1\\f7d24521fde039c3ff30d827aa9e8f60.mp3",
+  "filename": "partial_success.mp3",
+  "voice": "nova",
+  "language": "english",
+  "restaurant_id": 1
+}

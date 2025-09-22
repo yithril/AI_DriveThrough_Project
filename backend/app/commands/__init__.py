@@ -9,7 +9,6 @@ from .clear_order_command import ClearOrderCommand
 from .confirm_order_command import ConfirmOrderCommand
 from .repeat_command import RepeatCommand
 from .question_command import QuestionCommand
-from .small_talk_command import SmallTalkCommand
 from .unknown_command import UnknownCommand
 from .command_invoker import CommandInvoker
 from .command_context import CommandContext

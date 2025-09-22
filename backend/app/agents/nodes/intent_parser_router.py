@@ -14,7 +14,6 @@ from ..parser.clear_order_parser import ClearOrderParser
 from ..parser.confirm_order_parser import ConfirmOrderParser
 from ..parser.repeat_parser import RepeatParser
 from ..parser.question_parser import QuestionParser
-from ..parser.small_talk_parser import SmallTalkParser
 from ..parser.unknown_parser import UnknownParser
 # TODO: Import LLM-based parsers when implemented
 # from ..parser.add_item_parser import AddItemParser
@@ -37,7 +36,6 @@ class IntentParserRouter:
             IntentType.CONFIRM_ORDER: ConfirmOrderParser(),
             IntentType.REPEAT: RepeatParser(),
             IntentType.QUESTION: QuestionParser(),
-            IntentType.SMALL_TALK: SmallTalkParser(),
             IntentType.UNKNOWN: UnknownParser()
             # TODO: Add LLM-based parsers when implemented
             # IntentType.ADD_ITEM: AddItemParser(),

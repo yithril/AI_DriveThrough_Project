@@ -13,7 +13,6 @@ from app.commands.clear_order_command import ClearOrderCommand
 from app.commands.confirm_order_command import ConfirmOrderCommand
 from app.commands.repeat_command import RepeatCommand
 from app.commands.question_command import QuestionCommand
-from app.commands.small_talk_command import SmallTalkCommand
 from app.commands.unknown_command import UnknownCommand
 from app.commands.command_context import CommandContext
 from app.dto.order_result import OrderResult
@@ -404,49 +403,6 @@ class TestQuestionCommand:
         assert result.data["category"] == "pricing"
 
 
-class TestSmallTalkCommand:
-    """Test SmallTalkCommand execution"""
-    
-    @pytest.fixture
-    def command_context(self):
-        """Create command context"""
-        return CommandContext(
-            session_id="test_session",
-            restaurant_id=1,
-            order_id=123
-        )
-    
-    @pytest.mark.asyncio
-    async def test_execute_greeting(self, command_context):
-        """Test greeting response"""
-        command = SmallTalkCommand(
-            restaurant_id=1,
-            order_id=123,
-            user_input="Hello!",
-            response_type="greeting"
-        )
-        
-        result = await command.execute(command_context, AsyncMock())
-        
-        assert result.is_success
-        assert "Hello! Welcome to our drive-thru" in result.message
-        assert result.data["response_type"] == "greeting"
-    
-    @pytest.mark.asyncio
-    async def test_execute_thanks(self, command_context):
-        """Test thanks response"""
-        command = SmallTalkCommand(
-            restaurant_id=1,
-            order_id=123,
-            user_input="Thank you!",
-            response_type="thanks"
-        )
-        
-        result = await command.execute(command_context, AsyncMock())
-        
-        assert result.is_success
-        assert "You're very welcome!" in result.message
-        assert result.data["response_type"] == "thanks"
 
 
 class TestUnknownCommand:

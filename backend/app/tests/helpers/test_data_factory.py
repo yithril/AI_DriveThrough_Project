@@ -191,3 +191,186 @@ class TestDataFactory:
                 ]
             )
         }
+    
+    @staticmethod
+    def create_batch_result_scenarios() -> Dict[str, Any]:
+        """Create different batch result scenarios for testing"""
+        from app.dto.order_result import OrderResult, OrderResultStatus, ErrorCategory, ErrorCode, CommandBatchResult, ResponsePayload
+        
+        # Item not found scenario
+        item_not_found_result = OrderResult.business_error(
+            message="Chocolate pie not found",
+            errors=["Item 'chocolate pie' is not available"],
+            error_code=ErrorCode.ITEM_NOT_FOUND
+        )
+        
+        item_not_found_batch = CommandBatchResult.from_results(
+            results=[item_not_found_result],
+            command_family="ADD_ITEM",
+            batch_outcome="ALL_FAILED",
+            first_error_code="ITEM_NOT_FOUND",
+            response_payload=ResponsePayload(
+                enum_key="ITEM_NOT_FOUND",
+                args={"failed_item": "chocolate pie"},
+                telemetry={"error_count": 1}
+            )
+        )
+        
+        # Partial success scenario - Quantum Burger succeeds, Churros fails
+        success_result = OrderResult.success(
+            message="Quantum Burger added to order",
+            data={"item_name": "Quantum Burger", "quantity": 1}
+        )
+        
+        failed_result = OrderResult.business_error(
+            message="Churros not found",
+            errors=["Item 'churros' is not available"],
+            error_code=ErrorCode.ITEM_NOT_FOUND
+        )
+        
+        partial_success_batch = CommandBatchResult.from_results(
+            results=[success_result, failed_result],
+            command_family="ADD_ITEM",
+            batch_outcome="PARTIAL_SUCCESS_ASK",
+            first_error_code="ITEM_NOT_FOUND",
+            response_payload=ResponsePayload(
+                enum_key="PARTIAL_SUCCESS_ASK",
+                args={"successful_items": ["Quantum Burger"], "failed_items": ["churros"]},
+                telemetry={"success_count": 1, "error_count": 1}
+            )
+        )
+        
+        # Size not available scenario
+        size_error_result = OrderResult.business_error(
+            message="Large size not available for chocolate pie",
+            errors=["Size 'large' is not available for this item"],
+            error_code=ErrorCode.SIZE_NOT_AVAILABLE
+        )
+        
+        size_error_batch = CommandBatchResult.from_results(
+            results=[size_error_result],
+            command_family="ADD_ITEM",
+            batch_outcome="ALL_FAILED",
+            first_error_code="SIZE_NOT_AVAILABLE",
+            response_payload=ResponsePayload(
+                enum_key="SIZE_NOT_AVAILABLE",
+                args={"item": "chocolate pie", "requested_size": "large"},
+                telemetry={"error_count": 1}
+            )
+        )
+        
+        # Quantity exceeds limit scenario
+        quantity_error_result = OrderResult.business_error(
+            message="Quantity exceeds limit for water bottles",
+            errors=["Maximum quantity of 10 allowed per item. You requested 10,000 water bottles."],
+            error_code=ErrorCode.QUANTITY_EXCEEDS_LIMIT
+        )
+        
+        quantity_error_batch = CommandBatchResult.from_results(
+            results=[quantity_error_result],
+            command_family="ADD_ITEM",
+            batch_outcome="ALL_FAILED",
+            first_error_code="QUANTITY_EXCEEDS_LIMIT",
+            response_payload=ResponsePayload(
+                enum_key="QUANTITY_EXCEEDS_LIMIT",
+                args={"item": "water bottles", "requested_quantity": 10000, "max_quantity": 10},
+                telemetry={"error_count": 1}
+            )
+        )
+        
+        # Modifier conflict scenario
+        modifier_conflict_result = OrderResult.business_error(
+            message="Conflicting modifiers for hamburger",
+            errors=["Cannot have both 'extra meat' and 'no meat' on the same item"],
+            error_code=ErrorCode.MODIFIER_CONFLICT
+        )
+        
+        modifier_conflict_batch = CommandBatchResult.from_results(
+            results=[modifier_conflict_result],
+            command_family="ADD_ITEM",
+            batch_outcome="ALL_FAILED",
+            first_error_code="MODIFIER_CONFLICT",
+            response_payload=ResponsePayload(
+                enum_key="MODIFIER_CONFLICT",
+                args={"item": "hamburger", "conflicting_modifiers": ["extra meat", "no meat"]},
+                telemetry={"error_count": 1}
+            )
+        )
+        
+        # No substitutes scenario - completely inappropriate item
+        no_substitutes_result = OrderResult.business_error(
+            message="Shark fin soup not available",
+            errors=["Item 'shark fin soup' is not available at this restaurant"],
+            error_code=ErrorCode.ITEM_NOT_FOUND
+        )
+        
+        no_substitutes_batch = CommandBatchResult.from_results(
+            results=[no_substitutes_result],
+            command_family="ADD_ITEM",
+            batch_outcome="ALL_FAILED",
+            first_error_code="ITEM_NOT_FOUND",
+            response_payload=ResponsePayload(
+                enum_key="ITEM_NOT_FOUND",
+                args={"failed_item": "shark fin soup"},
+                telemetry={"error_count": 1}
+            )
+        )
+        
+        # Multi-item mixed results scenario
+        success_result_1 = OrderResult.success(
+            message="Quantum Burger with extra onions added to order",
+            data={"item_name": "Quantum Burger", "modifiers": ["extra onions"]}
+        )
+        
+        success_result_2 = OrderResult.success(
+            message="Strawberry Milkshake added to order",
+            data={"item_name": "Strawberry Milkshake", "quantity": 1}
+        )
+        
+        failed_result = OrderResult.business_error(
+            message="Waffle fries not available",
+            errors=["Item 'waffle fries' is not available"],
+            error_code=ErrorCode.ITEM_NOT_FOUND
+        )
+        
+        multi_item_mixed_batch = CommandBatchResult.from_results(
+            results=[success_result_1, success_result_2, failed_result],
+            command_family="ADD_ITEM",
+            batch_outcome="PARTIAL_SUCCESS_ASK",
+            first_error_code="ITEM_NOT_FOUND",
+            response_payload=ResponsePayload(
+                enum_key="PARTIAL_SUCCESS_ASK",
+                args={"successful_items": ["Quantum Burger with extra onions", "Strawberry Milkshake"], "failed_items": ["waffle fries"]},
+                telemetry={"success_count": 2, "error_count": 1}
+            )
+        )
+        
+        # Option required missing scenario
+        option_missing_result = OrderResult.business_error(
+            message="Size required for coke",
+            errors=["Please specify size: small, medium, or large"],
+            error_code=ErrorCode.OPTION_REQUIRED_MISSING
+        )
+        
+        option_missing_batch = CommandBatchResult.from_results(
+            results=[option_missing_result],
+            command_family="ADD_ITEM",
+            batch_outcome="ALL_FAILED",
+            first_error_code="OPTION_REQUIRED_MISSING",
+            response_payload=ResponsePayload(
+                enum_key="OPTION_REQUIRED_MISSING",
+                args={"item": "coke", "missing_option": "size", "available_options": ["small", "medium", "large"]},
+                telemetry={"error_count": 1}
+            )
+        )
+        
+        return {
+            "item_not_found": item_not_found_batch,
+            "partial_success": partial_success_batch,
+            "size_not_available": size_error_batch,
+            "quantity_exceeds_limit": quantity_error_batch,
+            "modifier_conflict": modifier_conflict_batch,
+            "no_substitutes": no_substitutes_batch,
+            "multi_item_mixed_results": multi_item_mixed_batch,
+            "option_required_missing": option_missing_batch
+        }

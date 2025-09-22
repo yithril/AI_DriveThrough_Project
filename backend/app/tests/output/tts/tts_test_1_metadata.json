@@ -1,0 +1,10 @@
+{
+  "test_number": 1,
+  "description": "Item not found with alternatives",
+  "text": "We don't have chocolate pie, but we do have apple pie and cheesecake. Would you like one of those instead?",
+  "audio_file": "C:\\Coding\\AI_DriveThru\\backend\\app\\tests\\output\\tts\\tts-cache\\restaurant-1\\3aab56ea387a6e20c4fa9578ff745b75.mp3",
+  "filename": "item_not_found_alternatives.mp3",
+  "voice": "nova",
+  "language": "english",
+  "restaurant_id": 1
+}

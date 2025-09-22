@@ -22,7 +22,7 @@ class TestCommandFactory:
         
         expected_intents = [
             "ADD_ITEM", "REMOVE_ITEM", "CLEAR_ORDER", "CONFIRM_ORDER",
-            "REPEAT", "QUESTION", "SMALL_TALK", "UNKNOWN"
+            "REPEAT", "QUESTION", "UNKNOWN"
         ]
         
         for intent in expected_intents:
@@ -200,26 +200,6 @@ class TestCommandFactory:
         assert command.question == "What do you have?"
         assert command.category == "menu"
     
-    def test_create_command_small_talk(self):
-        """Test creating SmallTalkCommand"""
-        intent_data = {
-            "intent": "SMALL_TALK",
-            "confidence": 1.0,
-            "slots": {
-                "user_input": "Hello there!",
-                "response_type": "greeting"
-            },
-            "needs_clarification": False
-        }
-        
-        command = CommandFactory.create_command(intent_data, 1, 100)
-        
-        assert command is not None
-        assert command.__class__.__name__ == "SmallTalkCommand"
-        assert command.restaurant_id == 1
-        assert command.order_id == 100
-        assert command.user_input == "Hello there!"
-        assert command.response_type == "greeting"
     
     def test_create_command_unknown(self):
         """Test creating UnknownCommand"""
@@ -399,7 +379,7 @@ class TestCommandFactory:
         """Test creating commands for all supported intent types"""
         intent_types = [
             "ADD_ITEM", "REMOVE_ITEM", "CLEAR_ORDER", "CONFIRM_ORDER",
-            "REPEAT", "QUESTION", "SMALL_TALK", "UNKNOWN"
+            "REPEAT", "QUESTION", "UNKNOWN"
         ]
         
         for intent_type in intent_types:
@@ -409,7 +389,7 @@ class TestCommandFactory:
                 slots = {"item_id": 123}
             elif intent_type == "REMOVE_ITEM":
                 slots = {"target_ref": "last_item"}
-            elif intent_type in ["REPEAT", "QUESTION", "SMALL_TALK", "UNKNOWN"]:
+            elif intent_type in ["REPEAT", "QUESTION", "UNKNOWN"]:
                 slots = {}  # These can work with empty slots
             
             intent_data = {

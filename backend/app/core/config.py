@@ -50,6 +50,10 @@ class Settings:
     # AI Processing
     AI_CONFIDENCE_THRESHOLD: float = float(os.getenv("AI_CONFIDENCE_THRESHOLD", "0.8"))
     
+    # Voice Configuration (required - no defaults)
+    TTS_VOICE: str = os.getenv("TTS_VOICE", "")
+    TTS_LANGUAGE: str = os.getenv("TTS_LANGUAGE", "")
+    
     # S3 Configuration
     S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME", "ai-drivethru-storage")
     S3_REGION: str = os.getenv("S3_REGION", "us-east-1")

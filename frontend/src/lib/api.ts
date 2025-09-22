@@ -61,14 +61,41 @@ class ApiClient {
     return this.request<RestaurantMenuResponse>(`/api/restaurants/${restaurantId}/menu`);
   }
 
+  // Session management endpoints
+  async getCurrentSession(): Promise<{ success: boolean; data: { session: any } }> {
+    return this.request('/api/sessions/current');
+  }
+
+  async createNewSession(restaurantId: number): Promise<{ success: boolean; data: { session_id: string } }> {
+    return this.request('/api/sessions/new-car', {
+      method: 'POST',
+      data: { restaurant_id: restaurantId },
+    });
+  }
+
+  async clearCurrentSession(): Promise<{ success: boolean; message: string }> {
+    return this.request('/api/sessions/next-car', {
+      method: 'POST',
+    });
+  }
+
   // AI endpoints
-  async processAudio(audioFile: File, restaurantId: number, orderId?: number, language: string = 'en'): Promise<unknown> {
+  async processAudio(audioFile: File, sessionId: string, restaurantId: number, language: string = 'en'): Promise<{
+    success: boolean;
+    session_id: string;
+    audio_url: string;
+    response_text: string;
+    order_state_changed: boolean;
+    metadata: {
+      processing_time: number;
+      cached: boolean;
+      errors: string[] | null;
+    };
+  }> {
     const formData = new FormData();
     formData.append('audio_file', audioFile);
+    formData.append('session_id', sessionId);
     formData.append('restaurant_id', restaurantId.toString());
-    if (orderId) {
-      formData.append('order_id', orderId.toString());
-    }
     formData.append('language', language);
 
     return this.request('/api/ai/process-audio', {

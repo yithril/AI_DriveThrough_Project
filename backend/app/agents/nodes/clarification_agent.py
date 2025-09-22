@@ -7,15 +7,19 @@ Used when commands need clarification, error handling, or dynamic responses.
 
 import logging
 from typing import Dict, Any
+from langchain_openai import ChatOpenAI
 from app.agents.state import ConversationWorkflowState
+from app.agents.agent_response import ClarificationResponse, ClarificationContext
+from app.agents.prompts.clarification_prompts import get_clarification_prompt
 from app.constants.audio_phrases import AudioPhraseType
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 async def clarification_agent_node(state: ConversationWorkflowState, context: Dict[str, Any]) -> ConversationWorkflowState:
     """
-    Generate LLM-based clarification or error handling response.
+    Generate LLM-based clarification or error handling response using structured output.
     
     Args:
         state: Current conversation workflow state with command batch result
@@ -41,69 +45,130 @@ async def clarification_agent_node(state: ConversationWorkflowState, context: Di
         if not batch_result:
             # No batch result - fallback response
             state.response_text = "I'm sorry, I didn't understand. Could you please try again?"
-            state.audio_url = await voice_service.generate_tts(
-                text=state.response_text,
+            state.response_phrase_type = AudioPhraseType.DIDNT_UNDERSTAND
+            state.audio_url = await voice_service.generate_audio(
+                phrase_type=AudioPhraseType.DIDNT_UNDERSTAND,
                 restaurant_id=state.restaurant_id
             )
             return state
         
-        # Generate LLM response based on command results
-        response_text = await _generate_clarification_response(
+        # Build clarification context
+        clarification_context = await _build_clarification_context(
             batch_result=batch_result,
-            conversation_history=state.conversation_history,
-            order_state=state.order_state,
-            user_input=state.user_input
+            state=state,
+            container=container
         )
         
-        # Generate audio using unified API
-        state.response_text = response_text
-        state.custom_response_text = response_text  # Set custom text for voice generation
+        # Get formatted prompt
+        prompt = get_clarification_prompt(batch_result, clarification_context)
+        
+        # Set up LangChain with structured output
+        llm = ChatOpenAI(
+            model="gpt-4o",
+            api_key=settings.OPENAI_API_KEY,
+            temperature=0.1
+        ).with_structured_output(ClarificationResponse, method="function_calling")
+        
+        # Execute with structured output
+        result = await llm.ainvoke(prompt)
+        logger.info(f"LLM clarification result: {result}")
+        
+        # DEBUG: Log the result
+        print(f"\n🔍 DEBUG - CLARIFICATION AI RESPONSE:")
+        print(f"   Response Type: {result.response_type}")
+        print(f"   Phrase Type: {result.phrase_type}")
+        print(f"   Text: {result.response_text}")
+        print(f"   Confidence: {result.confidence}")
+        
+        # DEBUG: Show the prompt that was sent to AI
+        print(f"\n📤 PROMPT SENT TO AI:")
+        print(f"=" * 30)
+        print(prompt[:500] + "..." if len(prompt) > 500 else prompt)
+        
+        # Populate state with results
+        state.response_text = result.response_text
+        state.response_phrase_type = result.phrase_type
+        state.custom_response_text = result.response_text if result.phrase_type == AudioPhraseType.LLM_GENERATED else None
+        
+        # Generate audio using the structured response
+        audio_params = result.to_audio_params()
         state.audio_url = await voice_service.generate_audio(
-            phrase_type=AudioPhraseType.LLM_GENERATED,
+            phrase_type=audio_params["phrase_type"],
             restaurant_id=state.restaurant_id,
-            custom_text=response_text
+            custom_text=audio_params.get("custom_text")
         )
         
-        logger.info(f"Generated clarification response: {response_text[:100]}...")
+        logger.info(f"Generated clarification response: {result.response_text[:100]}...")
         
     except Exception as e:
         logger.error(f"Clarification agent generation failed: {str(e)}")
         # Fallback response
         state.response_text = "I'm sorry, I had trouble processing your request. Please try again."
+        state.response_phrase_type = AudioPhraseType.ERROR_MESSAGE
         state.audio_url = None
     
     return state
 
 
-async def _generate_clarification_response(
+async def _build_clarification_context(
     batch_result,
-    conversation_history: list,
-    order_state,
-    user_input: str
-) -> str:
+    state: ConversationWorkflowState,
+    container
+) -> ClarificationContext:
     """
-    Generate LLM response for clarification or error handling.
+    Build clarification context from batch result and state.
     
     Args:
-        batch_result: CommandBatchResult with execution details
-        conversation_history: Previous conversation context
-        order_state: Current order state
-        user_input: What the user said
+        batch_result: Command execution results
+        state: Current workflow state
+        container: Service container for menu access
         
     Returns:
-        Generated clarification response text
+        ClarificationContext with all necessary data
     """
-    # TODO: Implement LLM clarification response generation
-    # For now, return a simple response based on batch outcome
+    # Extract error details from batch result
+    error_codes = list(batch_result.errors_by_code.keys()) if batch_result.errors_by_code else []
+    failed_items = [result.message for result in batch_result.get_failed_results()]
+    successful_items = [result.message for result in batch_result.get_successful_results()]
     
-    if batch_result.batch_outcome == "PARTIAL_SUCCESS":
-        return "I added some items to your order, but there were some issues. Let me help you with that."
-    elif batch_result.batch_outcome == "ALL_FAILED":
-        return "I couldn't add those items. Let me help you find what you're looking for."
-    elif batch_result.batch_outcome == "FATAL_SYSTEM":
-        return "I'm sorry, I'm having some technical difficulties. Please try again."
-    else:
-        return "I need a bit more information to help you. Could you please clarify?"
+    # Build order summary
+    order_summary = _build_order_summary(state.order_state)
+    
+    # Get menu data using MenuService
+    menu_service = container.menu_service()
+    available_items = await menu_service.get_available_items_for_restaurant(int(state.restaurant_id))
+    restaurant_name = await menu_service.get_restaurant_name(int(state.restaurant_id))
+    
+    context = ClarificationContext(
+        batch_outcome=batch_result.batch_outcome,
+        error_codes=[code.value for code in error_codes],
+        failed_items=failed_items,
+        successful_items=successful_items,
+        available_items=available_items,
+        similar_items={},  # Let AI figure out similarities from available_items
+        conversation_history=state.conversation_history[-5:],  # Last 5 turns
+        current_order_summary=order_summary,
+        restaurant_name=restaurant_name
+    )
+    
+    print(f"🔍 DEBUG - ClarificationContext:")
+    print(f"   Available items: {context.available_items}")
+    print(f"   Similar items: {context.similar_items}")
+    print(f"   Restaurant name: {context.restaurant_name}")
+    
+    return context
+
+
+def _build_order_summary(order_state) -> str:
+    """Build a summary of the current order"""
+    if not order_state.line_items:
+        return "No items in order"
+    
+    items = []
+    for item in order_state.line_items:
+        items.append(f"{item.get('quantity', 1)}x {item.get('name', 'Unknown Item')}")
+    
+    return ", ".join(items)
 
 
 def should_continue_after_clarification_agent(state: ConversationWorkflowState) -> str:

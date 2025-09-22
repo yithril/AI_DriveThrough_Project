@@ -57,7 +57,7 @@ EXAMPLES:
 EDGE CASE GUIDANCE:
 - "Cancel my fries" → REMOVE_ITEM (not CLEAR_ORDER)
 - "Clear the order" → CLEAR_ORDER
-- "I’ll have what she’s having" → REPEAT
+- "I'll have what she's having" → REPEAT
 - "Is the shake large?" → QUESTION (not MODIFY_ITEM)
 - "Make it two" following a referenced item → SET_QUANTITY for that item
 - "No pickles" after a burger reference → MODIFY_ITEM for that item

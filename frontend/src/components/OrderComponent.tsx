@@ -1,50 +1,61 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useSession } from '@/contexts/SessionContext';
+import { apiClient } from '@/lib/api';
+import { LineItem, SessionData } from '@/types/order';
 
-interface OrderItem {
-  id: number;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-export default function OrderComponent() {
+const OrderComponent = React.forwardRef<{ refreshOrder: () => void }>((props, ref) => {
   const { theme } = useTheme();
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const { sessionId, restaurantId, isLoading: sessionLoading } = useSession();
+  const [orderItems, setOrderItems] = useState<LineItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const addItem = (item: { id: number; name: string; price: number }) => {
-    setOrderItems(prev => {
-      const existing = prev.find(i => i.id === item.id);
-      if (existing) {
-        return prev.map(i => 
-          i.id === item.id 
-            ? { ...i, quantity: i.quantity + 1 }
-            : i
-        );
+  // Fetch order data from session
+  const fetchOrderData = async () => {
+    if (!sessionId) {
+      setOrderItems([]);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await apiClient.getCurrentSession();
+      
+      if (response.success && response.data.session) {
+        const session = response.data.session;
+        const lineItems = session.order_state?.line_items || [];
+        
+        // Use line items directly since they already have the right structure
+        setOrderItems(lineItems);
+      } else {
+        setOrderItems([]);
       }
-      return [...prev, { ...item, quantity: 1 }];
-    });
+    } catch (err: any) {
+      console.error('Failed to fetch order data:', err);
+      setError(err.message || 'Failed to fetch order data');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const removeItem = (id: number) => {
-    setOrderItems(prev => {
-      const existing = prev.find(i => i.id === id);
-      if (existing && existing.quantity > 1) {
-        return prev.map(i => 
-          i.id === id 
-            ? { ...i, quantity: i.quantity - 1 }
-            : i
-        );
-      }
-      return prev.filter(i => i.id !== id);
-    });
+  // Fetch order data when session changes
+  useEffect(() => {
+    fetchOrderData();
+  }, [sessionId]);
+
+  // Auto-refresh when order changes (this will be called from VoiceOrderComponent)
+  const refreshOrder = () => {
+    fetchOrderData();
   };
 
-  const clearOrder = () => {
-    setOrderItems([]);
-  };
+  // Expose refresh function to parent components
+  React.useImperativeHandle(ref, () => ({
+    refreshOrder
+  }));
 
   const total = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
@@ -61,11 +72,54 @@ export default function OrderComponent() {
           className="text-sm"
           style={{ color: theme.text.secondary }}
         >
-          Order #{Math.floor(Math.random() * 1000) + 1}
+          {sessionId ? `Session: ${sessionId.slice(0, 8)}...` : 'No active session'}
         </div>
       </div>
 
-      {orderItems.length === 0 ? (
+      {/* Loading State */}
+      {isLoading && (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto" style={{ borderColor: theme.text.primary }}></div>
+          <p className="mt-2 text-sm" style={{ color: theme.text.secondary }}>Loading order...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="text-center py-8">
+          <div className="text-red-500 mb-2">❌ {error}</div>
+          <button
+            onClick={fetchOrderData}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* No Session State */}
+      {!sessionId && !isLoading && (
+        <div className="text-center py-12">
+          <div 
+            className="mb-4"
+            style={{ color: theme.text.muted }}
+          >
+            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <p style={{ color: theme.text.secondary }}>No active session</p>
+          <p 
+            className="text-sm mt-1"
+            style={{ color: theme.text.muted }}
+          >
+            Start a new session to begin ordering
+          </p>
+        </div>
+      )}
+
+      {/* Empty Order State */}
+      {sessionId && !isLoading && !error && orderItems.length === 0 && (
         <div className="text-center py-12">
           <div 
             className="mb-4"
@@ -87,7 +141,7 @@ export default function OrderComponent() {
         <div className="space-y-3">
           {orderItems.map(item => (
             <div 
-              key={item.id} 
+              key={item.menu_item_id} 
               className="rounded-lg p-4 shadow-sm"
               style={{ 
                 backgroundColor: theme.surface,
@@ -108,44 +162,41 @@ export default function OrderComponent() {
                   >
                     ${item.price.toFixed(2)} each
                   </p>
+                  
+                  {/* Customizations */}
+                  {item.customizations && item.customizations.length > 0 && (
+                    <div className="mt-2">
+                      {item.customizations.map((customization, index) => (
+                        <div 
+                          key={index}
+                          className="text-xs ml-4 py-1"
+                          style={{ color: theme.text.muted }}
+                        >
+                          • {customization}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Special Instructions */}
+                  {item.special_instructions && (
+                    <div className="mt-2">
+                      <div 
+                        className="text-xs ml-4 py-1 italic"
+                        style={{ color: theme.text.muted }}
+                      >
+                        Note: {item.special_instructions}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors"
-                    style={{ 
-                      backgroundColor: theme.button.secondary,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = theme.button.secondaryHover;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = theme.button.secondary;
-                    }}
-                  >
-                    -
-                  </button>
                   <span 
                     className="w-8 text-center font-medium"
                     style={{ color: theme.text.primary }}
                   >
                     {item.quantity}
                   </span>
-                  <button
-                    onClick={() => addItem(item)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors"
-                    style={{ 
-                      backgroundColor: theme.button.secondary,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = theme.button.secondaryHover;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = theme.button.secondary;
-                    }}
-                  >
-                    +
-                  </button>
                 </div>
               </div>
               <div className="mt-2 text-right">
@@ -166,7 +217,7 @@ export default function OrderComponent() {
           className="mt-6 pt-4"
           style={{ borderTop: `1px solid ${theme.border.primary}` }}
         >
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center">
             <span 
               className="text-lg font-semibold"
               style={{ color: theme.text.primary }}
@@ -180,15 +231,12 @@ export default function OrderComponent() {
               ${total.toFixed(2)}
             </span>
           </div>
-          
-          <button
-            onClick={clearOrder}
-            className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-          >
-            Clear Order
-          </button>
         </div>
       )}
     </div>
   );
-}
+});
+
+OrderComponent.displayName = 'OrderComponent';
+
+export default OrderComponent;

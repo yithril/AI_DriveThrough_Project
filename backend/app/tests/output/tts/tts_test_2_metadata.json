@@ -1,0 +1,10 @@
+{
+  "test_number": 2,
+  "description": "Option required missing",
+  "text": "What size Coke would you like? We have small, medium, and large available.",
+  "audio_file": "C:\\Coding\\AI_DriveThru\\backend\\app\\tests\\output\\tts\\tts-cache\\restaurant-1\\f61c40c985ce91be3b0b52ba267c210a.mp3",
+  "filename": "option_required_missing.mp3",
+  "voice": "nova",
+  "language": "english",
+  "restaurant_id": 1
+}

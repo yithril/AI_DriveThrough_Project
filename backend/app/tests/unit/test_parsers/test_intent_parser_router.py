@@ -18,12 +18,11 @@ class TestIntentParserRouter:
     
     def test_router_initialization(self, router):
         """Test router initializes correctly with all parsers"""
-        assert len(router.parsers) == 6  # All 6 rule-based parsers
+        assert len(router.parsers) == 5  # All 5 rule-based parsers
         assert IntentType.CLEAR_ORDER in router.parsers
         assert IntentType.CONFIRM_ORDER in router.parsers
         assert IntentType.REPEAT in router.parsers
         assert IntentType.QUESTION in router.parsers
-        assert IntentType.SMALL_TALK in router.parsers
         assert IntentType.UNKNOWN in router.parsers
     
     def test_parse_intent_clear_order(self, router):
@@ -76,18 +75,6 @@ class TestIntentParserRouter:
         assert "question" in result.command_data["slots"]
         assert "category" in result.command_data["slots"]
     
-    def test_parse_intent_small_talk(self, router):
-        """Test routing SMALL_TALK intent"""
-        result = router.parse_intent(
-            intent_type=IntentType.SMALL_TALK,
-            user_input="hello",
-            context={}
-        )
-        
-        assert result.success is True
-        assert result.command_data["intent"] == "SMALL_TALK"
-        assert "response_type" in result.command_data["slots"]
-        assert "user_input" in result.command_data["slots"]
     
     def test_parse_intent_unknown(self, router):
         """Test routing UNKNOWN intent"""
@@ -161,12 +148,11 @@ class TestIntentParserRouter:
         """Test getting supported intent types"""
         supported_intents = router.get_supported_intents()
         
-        assert len(supported_intents) == 6
+        assert len(supported_intents) == 5
         assert IntentType.CLEAR_ORDER in supported_intents
         assert IntentType.CONFIRM_ORDER in supported_intents
         assert IntentType.REPEAT in supported_intents
         assert IntentType.QUESTION in supported_intents
-        assert IntentType.SMALL_TALK in supported_intents
         assert IntentType.UNKNOWN in supported_intents
     
     def test_router_consistency(self, router):

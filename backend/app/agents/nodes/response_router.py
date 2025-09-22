@@ -27,6 +27,9 @@ async def response_router_node(state: ConversationWorkflowState) -> Conversation
     # Get the batch result from command executor
     batch_result = state.command_batch_result
     
+    # Check if order changed and update state
+    state.order_state_changed = _did_order_change(batch_result)
+    
     if not batch_result:
         # No batch result - go to voice generation with error message
         state.next_node = "voice_generation"
@@ -81,4 +84,27 @@ def should_continue_after_response_router(state: ConversationWorkflowState) -> s
         Next node name based on routing decision
     """
     # The response router sets the next_node, so we just return it
-    return state.next_node or "canned_response"
+    return state.next_node or "voice_generation"
+
+
+def _did_order_change(batch_result) -> bool:
+    """
+    Check if the order state changed based on command results.
+    
+    Args:
+        batch_result: CommandBatchResult from command execution
+        
+    Returns:
+        bool: True if order was modified, False otherwise
+    """
+    if not batch_result:
+        return False
+    
+    # Order-changing command families
+    ORDER_CHANGING_FAMILIES = {
+        "ADD_ITEM", "REMOVE_ITEM", "MODIFY_ITEM", "CLEAR_ORDER", "CONFIRM_ORDER"
+    }
+    
+    # Check if it was an order-modifying command and it succeeded
+    return (batch_result.command_family in ORDER_CHANGING_FAMILIES and 
+            batch_result.successful_commands > 0)

@@ -99,6 +99,12 @@ class Container(containers.DeclarativeContainer):
     # Import services (these need database sessions, so they're created per request)
     excel_import_service = providers.Factory("app.services.excel_import_service.ExcelImportService")
     restaurant_import_service = providers.Factory("app.services.restaurant_import_service.RestaurantImportService")
+    
+    # Menu service (needs database session, created per request)
+    menu_service = providers.Factory("app.services.menu_service.MenuService")
+    
+    # Restaurant service (needs database session, created per request)
+    restaurant_service = providers.Factory("app.services.restaurant_service.RestaurantService")
 
     def init_resources(self):
         """Initialize resources that need startup setup"""

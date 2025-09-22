@@ -1,5 +1,5 @@
 """
-Integration test for speech service
+Integration test for speech-to-text service
 Processes test audio files and outputs transcribed text
 """
 
@@ -19,7 +19,7 @@ backend_dir = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(backend_dir))
 
 # Direct imports to avoid circular dependency
-from app.services.speech_service import SpeechService
+from app.services.speech_to_text_service import SpeechToTextService
 from app.models.language import Language
 
 # Simple test config without importing the full dependency chain
@@ -39,7 +39,7 @@ class SpeechIntegrationTest:
     """
     
     def __init__(self):
-        self.speech_service = SpeechService()
+        self.speech_to_text_service = SpeechToTextService()
         self.test_audio_dir = Path(__file__).parent.parent / "test_audio"
         self.output_dir = Path(__file__).parent.parent / "output"
         
@@ -103,13 +103,13 @@ class SpeechIntegrationTest:
             
             # Transcribe audio
             print(f"   🎯 Transcribing with {language.display_name} context...")
-            result = await self.speech_service.transcribe_audio(
+            result = await self.speech_to_text_service.transcribe_audio(
                 audio_data=audio_data,
                 audio_format=audio_format,
                 language=language
             )
             
-            if result.success:
+            if result.is_success:
                 transcript = result.data["transcript"]
                 confidence = result.data.get("confidence", 0.0)
                 
@@ -249,10 +249,11 @@ async def test_single_audio_file():
 # Standalone runner (for manual testing)
 async def main():
     """
-    Main function to run the integration test
+    Main function to run the speech-to-text integration test
     """
-    test_runner = SpeechIntegrationTest()
-    await test_runner.run_all_tests()
+    print("🎤 Running Speech-to-Text Integration Tests")
+    speech_test_runner = SpeechIntegrationTest()
+    await speech_test_runner.run_all_tests()
 
 
 if __name__ == "__main__":

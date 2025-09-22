@@ -37,6 +37,7 @@ async def command_executor_node(state: ConversationWorkflowState, context: Dict[
         command_context = CommandContext(
             session_id=state.session_id,
             restaurant_id=state.restaurant_id,
+            #What is this order id?
             order_id=state.order_state.order_id if hasattr(state.order_state, 'order_id') else None
         )
         
@@ -107,7 +108,7 @@ async def command_executor_node(state: ConversationWorkflowState, context: Dict[
                 # No additional enrichment needed
                 
                 state.command_batch_result = batch_result
-                state.order_state_changed = batch_result.has_successes
+                # Note: order_state_changed is now set by response_router_node
             
             # Generate response text based on results
             if batch_result.has_successes and not batch_result.has_failures:
@@ -119,7 +120,7 @@ async def command_executor_node(state: ConversationWorkflowState, context: Dict[
         else:
             # No valid commands to execute
             state.command_batch_result = None
-            state.order_state_changed = False
+            # Note: order_state_changed is now set by response_router_node
             state.response_text = "I'm sorry, I couldn't understand what you wanted to order."
         
         # Step 3: Store validation errors
@@ -130,7 +131,7 @@ async def command_executor_node(state: ConversationWorkflowState, context: Dict[
     except Exception as e:
         state.add_error(f"Command execution failed: {str(e)}")
         state.command_batch_result = None
-        state.order_state_changed = False
+        # Note: order_state_changed is now set by response_router_node
         state.response_text = "I'm sorry, there was an error processing your order."
     
     return state

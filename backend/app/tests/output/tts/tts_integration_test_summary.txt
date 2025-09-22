@@ -1,0 +1,59 @@
+Text-to-Speech Integration Test Summary
+==================================================
+
+Total tests: 5
+Successful: 5
+Failed: 0
+
+🎤 TTS TEST SCENARIOS:
+----------------------------------------
+
+Test 1: Item not found with alternatives
+Text: We don't have chocolate pie, but we do have apple pie and cheesecake. Would you like one of those instead?
+Status: ✅ SUCCESS
+Audio File: C:\Coding\AI_DriveThru\backend\app\tests\output\tts\tts-cache\restaurant-1\3aab56ea387a6e20c4fa9578ff745b75.mp3
+Filename: item_not_found_alternatives.mp3
+Metadata: C:\Coding\AI_DriveThru\backend\app\tests\output\tts\tts_test_1_metadata.json
+
+Test 2: Option required missing
+Text: What size Coke would you like? We have small, medium, and large available.
+Status: ✅ SUCCESS
+Audio File: C:\Coding\AI_DriveThru\backend\app\tests\output\tts\tts-cache\restaurant-1\f61c40c985ce91be3b0b52ba267c210a.mp3
+Filename: option_required_missing.mp3
+Metadata: C:\Coding\AI_DriveThru\backend\app\tests\output\tts\tts_test_2_metadata.json
+
+Test 3: Quantity limit response
+Text: We can't do that many. How many would you like?
+Status: ✅ SUCCESS
+Audio File: C:\Coding\AI_DriveThru\backend\app\tests\output\tts\tts-cache\restaurant-1\2d17c7c84802100ad515820e6560d250.mp3
+Filename: quantity_limit.mp3
+Metadata: C:\Coding\AI_DriveThru\backend\app\tests\output\tts\tts_test_3_metadata.json
+
+Test 4: No substitutes available
+Text: I'm sorry, but we don't have that item. What else can I get for you today?
+Status: ✅ SUCCESS
+Audio File: C:\Coding\AI_DriveThru\backend\app\tests\output\tts\tts-cache\restaurant-1\be5ebdf258118ae091d7c51ece700127.mp3
+Filename: no_substitutes.mp3
+Metadata: C:\Coding\AI_DriveThru\backend\app\tests\output\tts\tts_test_4_metadata.json
+
+Test 5: Partial success confirmation
+Text: I added the quantum burger with extra onions and the strawberry milkshake to your order.
+Status: ✅ SUCCESS
+Audio File: C:\Coding\AI_DriveThru\backend\app\tests\output\tts\tts-cache\restaurant-1\f7d24521fde039c3ff30d827aa9e8f60.mp3
+Filename: partial_success.mp3
+Metadata: C:\Coding\AI_DriveThru\backend\app\tests\output\tts\tts_test_5_metadata.json
+
+
+📝 TTS INTEGRATION TEST NOTES:
+------------------------------
+This test generates real audio files using the voice service.
+Generated files are saved locally in the output/tts directory.
+You can play these MP3 files to hear the TTS output.
+
+Test includes:
+1. Real TTS service integration with OpenAI
+2. Local file storage for testing
+3. Audio files saved as MP3 format
+4. Metadata files with test information
+5. Clarification agent response scenarios
+6. Voice caching simulation (first call generates, subsequent calls would use cache)

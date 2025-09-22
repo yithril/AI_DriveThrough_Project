@@ -12,7 +12,6 @@ from .clear_order_command import ClearOrderCommand
 from .confirm_order_command import ConfirmOrderCommand
 from .repeat_command import RepeatCommand
 from .question_command import QuestionCommand
-from .small_talk_command import SmallTalkCommand
 from .unknown_command import UnknownCommand
 
 
@@ -29,7 +28,6 @@ class CommandFactory:
         "CONFIRM_ORDER": ConfirmOrderCommand,
         "REPEAT": RepeatCommand,
         "QUESTION": QuestionCommand,
-        "SMALL_TALK": SmallTalkCommand,
         "UNKNOWN": UnknownCommand,
         # These intents are kept but don't create commands (handled elsewhere):
         # "MODIFY_ITEM": Handled as RemoveItemCommand + AddItemCommand
@@ -78,8 +76,6 @@ class CommandFactory:
                 return cls._create_repeat_command(command_class, slots, restaurant_id, order_id)
             elif intent == "QUESTION":
                 return cls._create_question_command(command_class, slots, restaurant_id, order_id)
-            elif intent == "SMALL_TALK":
-                return cls._create_small_talk_command(command_class, slots, restaurant_id, order_id)
             elif intent == "UNKNOWN":
                 return cls._create_unknown_command(command_class, slots, restaurant_id, order_id)
             else:
@@ -149,15 +145,6 @@ class CommandFactory:
             category=slots.get("category", "general")
         )
     
-    @classmethod
-    def _create_small_talk_command(cls, command_class, slots: Dict[str, Any], restaurant_id: int, order_id: int):
-        """Create SmallTalkCommand from slots"""
-        return command_class(
-            restaurant_id=restaurant_id,
-            order_id=order_id,
-            user_input=slots.get("user_input", ""),
-            response_type=slots.get("response_type", "general")
-        )
     
     @classmethod
     def _create_unknown_command(cls, command_class, slots: Dict[str, Any], restaurant_id: int, order_id: int):

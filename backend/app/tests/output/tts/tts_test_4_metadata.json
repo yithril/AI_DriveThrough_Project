@@ -1,0 +1,10 @@
+{
+  "test_number": 4,
+  "description": "No substitutes available",
+  "text": "I'm sorry, but we don't have that item. What else can I get for you today?",
+  "audio_file": "C:\\Coding\\AI_DriveThru\\backend\\app\\tests\\output\\tts\\tts-cache\\restaurant-1\\be5ebdf258118ae091d7c51ece700127.mp3",
+  "filename": "no_substitutes.mp3",
+  "voice": "nova",
+  "language": "english",
+  "restaurant_id": 1
+}

@@ -11,7 +11,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import PydanticOutputParser
 from app.agents.state import ConversationWorkflowState
 from app.commands.intent_classification_schema import IntentType, IntentClassificationResult
-from app.agents.prompts.intent_classification import get_intent_classification_prompt
+from app.agents.prompts.intent_classification_prompts import get_intent_classification_prompt
 from app.constants.audio_phrases import AudioPhraseType
 from app.core.config import settings
 

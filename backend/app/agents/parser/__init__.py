@@ -10,7 +10,6 @@ from .clear_order_parser import ClearOrderParser
 from .confirm_order_parser import ConfirmOrderParser
 from .repeat_parser import RepeatParser
 from .question_parser import QuestionParser
-from .small_talk_parser import SmallTalkParser
 from .unknown_parser import UnknownParser
 
 __all__ = [
@@ -20,6 +19,5 @@ __all__ = [
     "ConfirmOrderParser",
     "RepeatParser",
     "QuestionParser",
-    "SmallTalkParser",
     "UnknownParser"
 ]

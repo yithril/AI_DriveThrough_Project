@@ -4,6 +4,7 @@ import "./globals.css";
 import { DataProvider } from "@/contexts/DataContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SpeakerProvider } from "@/contexts/SpeakerContext";
+import { SessionProvider } from "@/contexts/SessionContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const geistSans = Geist({
@@ -35,7 +36,9 @@ export default function RootLayout({
               <DataProvider>
                 <ThemeProvider>
                   <SpeakerProvider>
-                    {children}
+                        <SessionProvider>
+                          {children}
+                        </SessionProvider>
                   </SpeakerProvider>
                 </ThemeProvider>
               </DataProvider>

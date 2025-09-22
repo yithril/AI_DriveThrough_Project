@@ -38,6 +38,21 @@ class Restaurant(Base):
         nullable=True,
         comment="Restaurant description"
     )
+    address = Column(
+        String(255),
+        nullable=True,
+        comment="Restaurant address"
+    )
+    phone = Column(
+        String(20),
+        nullable=True,
+        comment="Restaurant phone number"
+    )
+    hours = Column(
+        String(100),
+        nullable=True,
+        comment="Restaurant operating hours"
+    )
     is_active = Column(
         Boolean, 
         default=True,
@@ -89,6 +104,9 @@ class Restaurant(Base):
             "primary_color": self.primary_color,
             "secondary_color": self.secondary_color,
             "description": self.description,
+            "address": self.address,
+            "phone": self.phone,
+            "hours": self.hours,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None

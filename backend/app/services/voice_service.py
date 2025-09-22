@@ -16,6 +16,7 @@ from .speech_to_text_service import SpeechToTextService
 from .file_storage_service import FileStorageService
 from .redis_service import RedisService
 from ..constants.audio_phrases import AudioPhraseType, AudioPhraseConstants
+from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +47,8 @@ class VoiceService:
     def _generate_cache_key(
         self, 
         text: str, 
-        voice: str = "nova", 
-        language: str = "english",
+        voice: str = None, 
+        language: str = None,
         restaurant_id: int = None
     ) -> str:
         """
@@ -55,13 +56,23 @@ class VoiceService:
         
         Args:
             text: Text to convert to speech
-            voice: Voice to use (default: nova)
-            language: Language to use (default: english)
+            voice: Voice to use (defaults to TTS_VOICE from config)
+            language: Language to use (defaults to TTS_LANGUAGE from config)
             restaurant_id: Restaurant ID for multitenancy (optional)
             
         Returns:
             MD5 hex string safe for S3 object keys
         """
+        # Use config defaults if not provided - fail loudly if not configured
+        voice = voice or settings.TTS_VOICE
+        language = language or settings.TTS_LANGUAGE
+        
+        # Validate configuration
+        if not voice or voice == "":
+            raise ValueError("TTS_VOICE environment variable is not set or empty. Please configure voice settings.")
+        if not language or language == "":
+            raise ValueError("TTS_LANGUAGE environment variable is not set or empty. Please configure language settings.")
+        
         # Include all parameters that affect the generated audio
         cache_content = f"{text}_{voice}_{language}_{restaurant_id or 'default'}"
         
@@ -156,8 +167,8 @@ class VoiceService:
     async def generate_voice(
         self, 
         text: str, 
-        voice: str = "nova", 
-        language: str = "english",
+        voice: str = None, 
+        language: str = None,
         restaurant_id: int = None
     ) -> Optional[str]:
         """
@@ -165,8 +176,8 @@ class VoiceService:
         
         Args:
             text: Text to convert to speech
-            voice: Voice to use (default: nova)
-            language: Language to use (default: english) 
+            voice: Voice to use (defaults to TTS_VOICE from config)
+            language: Language to use (defaults to TTS_LANGUAGE from config)
             restaurant_id: Restaurant ID for multitenancy (optional)
             
         Returns:
@@ -175,6 +186,16 @@ class VoiceService:
         if not text or not text.strip():
             logger.warning("Cannot generate voice for empty text")
             return None
+        
+        # Use config defaults if not provided - fail loudly if not configured
+        voice = voice or settings.TTS_VOICE
+        language = language or settings.TTS_LANGUAGE
+        
+        # Validate configuration
+        if not voice or voice == "":
+            raise ValueError("TTS_VOICE environment variable is not set or empty. Please configure voice settings.")
+        if not language or language == "":
+            raise ValueError("TTS_LANGUAGE environment variable is not set or empty. Please configure language settings.")
         
         try:
             # Generate cache key and path
