@@ -21,20 +21,20 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-def create_add_item_tools(container) -> List:
+def create_add_item_tools(service_bundle) -> List:
     """
     Create tools for ADD_ITEM agent
     
     Args:
-        container: Dependency injection container
+        service_bundle: Service bundle containing required services
         
     Returns:
         List of tools for the agent
     """
     
-    # Get services from container
-    menu_service = container.menu_service()
-    restaurant_service = container.restaurant_service()
+    # Get services from bundle
+    menu_service = service_bundle.get("menu_service")
+    restaurant_service = service_bundle.get("restaurant_service")
     
     @tool
     async def search_menu_items(query: str) -> str:
@@ -142,13 +142,28 @@ async def add_item_agent_node(state: ConversationWorkflowState, context: Dict[st
         Updated state with parsed items and response
     """
     try:
-        # Get container from context
-        container = context.get("container")
-        if not container:
-            raise ValueError("Container not found in context")
+        # Get service factory from context
+        service_factory = context.get("service_factory")
+        if not service_factory:
+            raise ValueError("Service factory not found in context")
+        
+        # Get shared database session from context
+        shared_db_session = context.get("shared_db_session")
+        if not shared_db_session:
+            raise ValueError("Shared database session not found in context")
+        
+        # Create services with shared database session
+        menu_service = service_factory.create_menu_service(shared_db_session)
+        restaurant_service = service_factory.create_restaurant_service(shared_db_session)
+        
+        # Create service bundle for tools
+        service_bundle = {
+            "menu_service": menu_service,
+            "restaurant_service": restaurant_service
+        }
         
         # Create tools
-        tools = create_add_item_tools(container)
+        tools = create_add_item_tools(service_bundle)
         
         # Set up LLM
         llm = ChatOpenAI(
@@ -157,8 +172,7 @@ async def add_item_agent_node(state: ConversationWorkflowState, context: Dict[st
             temperature=0.1
         )
         
-        # Get menu data for the prompt
-        menu_service = container.menu_service()
+        # Get menu data for the prompt (using services from service bundle)
         available_items = await menu_service.get_available_items_for_restaurant(int(state.restaurant_id))
         restaurant_name = await menu_service.get_restaurant_name(int(state.restaurant_id))
         

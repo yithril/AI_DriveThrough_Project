@@ -20,7 +20,7 @@ class ClearOrderParser(BaseParser):
     def __init__(self):
         super().__init__(IntentType.CLEAR_ORDER)
     
-    def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
+    async def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
         """
         Parse clear order intent into command data.
         

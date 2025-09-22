@@ -11,7 +11,7 @@ from app.models.state_machine_models import ConversationState
 from app.core.state_machine import DriveThruStateMachine
 
 
-async def state_transition_node(state: ConversationWorkflowState, context: Dict[str, Any]) -> ConversationWorkflowState:
+async def state_transition_node(state: ConversationWorkflowState, config = None) -> ConversationWorkflowState:
     """
     Decide what action to take based on intent and current state using the state machine.
     Updates Redis state immediately for valid transitions.
@@ -40,13 +40,12 @@ async def state_transition_node(state: ConversationWorkflowState, context: Dict[
     # Update Redis state immediately for valid transitions
     if transition.is_valid and transition.target_state:
         try:
-            # Get order session service from context
-            container = context.get("container")
-            if container:
-                order_session_service = container.order_session_service()
+            # Get order session service from factory
+            service_factory = config.get("configurable", {}).get("service_factory") if config else None
+            order_session_service = service_factory.create_order_session_service() if service_factory else None
                 
                 # Update the session state in Redis immediately
-                await order_session_service.update_session(
+            await order_session_service.update_session(
                     session_id=state.session_id,
                     updates={
                         "conversation_state": transition.target_state.value,
@@ -55,7 +54,7 @@ async def state_transition_node(state: ConversationWorkflowState, context: Dict[
                 )
                 
                 # Update the workflow state to reflect the new state
-                state.current_state = transition.target_state
+            state.current_state = transition.target_state
                 
         except Exception as e:
             # Log error but don't fail the workflow

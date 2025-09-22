@@ -14,7 +14,7 @@ from app.commands.command_context import CommandContext
 # Removed circular import - Container will be injected via workflow
 
 
-async def command_executor_node(state: ConversationWorkflowState, context: Dict[str, Any]) -> ConversationWorkflowState:
+async def command_executor_node(state: ConversationWorkflowState, config = None) -> ConversationWorkflowState:
     """
     Execute generated commands and collect results.
     
@@ -25,8 +25,13 @@ async def command_executor_node(state: ConversationWorkflowState, context: Dict[
     Returns:
         Updated state with command execution results
     """
-    # Get injected dependencies from LangGraph context
-    container = context["container"]
+    # Get service factory from config
+    service_factory = config.get("configurable", {}).get("service_factory") if config else None
+    
+    if not service_factory:
+        logger.error("Service factory not available")
+        state.response_text = "I'm sorry, I'm having trouble processing your request. Please try again."
+        return state
     
     # Import services (no longer need to import Container)
     from app.commands.command_invoker import CommandInvoker
@@ -41,22 +46,29 @@ async def command_executor_node(state: ConversationWorkflowState, context: Dict[
             order_id=state.order_state.order_id if hasattr(state.order_state, 'order_id') else None
         )
         
-        # Get services from container and populate command context
-        command_context.set_order_service(container.order_service())
-        command_context.set_order_session_service(container.order_session_service())
-        command_context.set_customization_validator(container.customization_validator())
+        # Get shared database session from context
+        shared_db_session = config.get("configurable", {}).get("shared_db_session")
+        if not shared_db_session:
+            logger.error("Shared database session not available")
+            state.response_text = "I'm sorry, I'm having trouble processing your request. Please try again."
+            return state
+        
+        # Create services with shared database session
+        order_service = service_factory.create_order_service(shared_db_session)
+        order_session_service = service_factory.create_order_session_service()
+        customization_validator = service_factory.create_customization_validator(shared_db_session)
+        
+        # Populate command context
+        command_context.set_order_service(order_service)
+        command_context.set_order_session_service(order_session_service)
+        command_context.set_customization_validator(customization_validator)
         
         # Create UnitOfWork for this command batch execution
         # All commands in the batch will share the same transaction
         from app.core.unit_of_work import UnitOfWork
         
-        # Get database session from container
-        async def get_db_session():
-            async for session in container.get_db():
-                return session
-        
-        db_session = await get_db_session()
-        uow = container.unit_of_work(db_session)
+        # Create UnitOfWork with shared database session
+        uow = UnitOfWork(shared_db_session)
         
         # Step 1: Validate command dictionaries
         valid_commands = []

@@ -17,7 +17,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-async def clarification_agent_node(state: ConversationWorkflowState, context: Dict[str, Any]) -> ConversationWorkflowState:
+async def clarification_agent_node(state: ConversationWorkflowState, config = None) -> ConversationWorkflowState:
     """
     Generate LLM-based clarification or error handling response using structured output.
     
@@ -29,9 +29,26 @@ async def clarification_agent_node(state: ConversationWorkflowState, context: Di
         Updated state with response text and audio URL
     """
     try:
-        # Get services from context
-        container = context.get("container")
-        voice_service = container.voice_service()
+        # Get services from factory
+        service_factory = config.get("configurable", {}).get("service_factory") if config else None
+        
+        if not service_factory:
+            logger.error("Service factory not available")
+            state.response_text = "I'm sorry, I'm having trouble processing your request. Please try again."
+            state.audio_url = None
+            return state
+        
+        voice_service = service_factory.create_voice_service()
+        
+        # Get shared database session from context
+        shared_db_session = config.get("configurable", {}).get("shared_db_session")
+        if not shared_db_session:
+            logger.error("Shared database session not available")
+            state.response_text = "I'm sorry, I'm having trouble processing your request. Please try again."
+            state.audio_url = None
+            return state
+        
+        menu_service = service_factory.create_menu_service(shared_db_session)
         
         if not voice_service:
             logger.error("Voice service not available")
@@ -56,7 +73,7 @@ async def clarification_agent_node(state: ConversationWorkflowState, context: Di
         clarification_context = await _build_clarification_context(
             batch_result=batch_result,
             state=state,
-            container=container
+            menu_service=menu_service
         )
         
         # Get formatted prompt
@@ -113,7 +130,7 @@ async def clarification_agent_node(state: ConversationWorkflowState, context: Di
 async def _build_clarification_context(
     batch_result,
     state: ConversationWorkflowState,
-    container
+    menu_service
 ) -> ClarificationContext:
     """
     Build clarification context from batch result and state.
@@ -135,7 +152,6 @@ async def _build_clarification_context(
     order_summary = _build_order_summary(state.order_state)
     
     # Get menu data using MenuService
-    menu_service = container.menu_service()
     available_items = await menu_service.get_available_items_for_restaurant(int(state.restaurant_id))
     restaurant_name = await menu_service.get_restaurant_name(int(state.restaurant_id))
     

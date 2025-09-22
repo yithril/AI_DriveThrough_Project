@@ -28,7 +28,7 @@ class ModifyItemParser(BaseParser):
         # TODO: Initialize LLM client and prompts
         pass
     
-    def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
+    async def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
         """
         Parse MODIFY_ITEM intent using LLM
         

@@ -3,7 +3,7 @@ Session validation models for conversation workflow state management.
 """
 
 from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from app.models.state_machine_models import ConversationState
 
@@ -16,7 +16,8 @@ class ConversationContextData(BaseModel):
     timeout_at: Optional[str] = None  # ISO datetime string
     expectation: str = Field(default="free_form_ordering", description="Current expectation")
 
-    @validator('expectation')
+    @field_validator('expectation')
+    @classmethod
     def validate_expectation(cls, v):
         valid_expectations = [
             "free_form_ordering", "single_answer", "menu_questions_or_wait", 
@@ -48,14 +49,16 @@ class ConversationSessionData(BaseModel):
     conversation_context: ConversationContextData = Field(..., description="Conversation context")
     order_state: OrderStateData = Field(..., description="Order state")
 
-    @validator('conversation_state')
+    @field_validator('conversation_state')
+    @classmethod
     def validate_conversation_state(cls, v):
         valid_states = [state.value for state in ConversationState]
         if v not in valid_states:
             raise ValueError(f"Invalid conversation state: {v}. Must be one of: {valid_states}")
         return v
 
-    @validator('created_at', 'updated_at')
+    @field_validator('created_at', 'updated_at')
+    @classmethod
     def validate_timestamps(cls, v):
         try:
             datetime.fromisoformat(v.replace('Z', '+00:00'))
@@ -63,7 +66,8 @@ class ConversationSessionData(BaseModel):
             raise ValueError(f"Invalid timestamp format: {v}. Must be ISO format")
         return v
 
-    @validator('conversation_history')
+    @field_validator('conversation_history')
+    @classmethod
     def validate_conversation_history(cls, v):
         if not isinstance(v, list):
             raise ValueError("Conversation history must be a list")

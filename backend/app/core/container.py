@@ -24,7 +24,6 @@ class Container(containers.DeclarativeContainer):
     # Core services (no dependencies) - using lazy imports
     speech_to_text_service = providers.Singleton("app.services.speech_to_text_service.SpeechToTextService")
     validation_service = providers.Singleton("app.services.lightweight_validation_service.LightweightValidationService")
-    order_intent_processor = providers.Singleton("app.services.ai_agent.OrderIntentProcessor")
     
     # Redis service with lifecycle management
     redis_service = providers.Singleton("app.services.redis_service.RedisService")

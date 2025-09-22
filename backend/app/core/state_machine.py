@@ -68,10 +68,6 @@ class DriveThruStateMachine:
             ConversationState.ORDERING, IntentType.CONFIRM_ORDER, ConversationState.CONFIRMING,
             True, False, AudioPhraseType.ORDER_SUMMARY
         )
-        transitions[(ConversationState.ORDERING, IntentType.REPEAT)] = StateTransition(
-            ConversationState.ORDERING, IntentType.REPEAT, ConversationState.ORDERING,
-            True, False, AudioPhraseType.ORDER_REPEAT
-        )
         transitions[(ConversationState.ORDERING, IntentType.QUESTION)] = StateTransition(
             ConversationState.ORDERING, IntentType.QUESTION, ConversationState.CLARIFYING,
             True, False, AudioPhraseType.GREETING  # Will be overridden by question response
@@ -108,10 +104,6 @@ class DriveThruStateMachine:
         )
         transitions[(ConversationState.THINKING, IntentType.CONFIRM_ORDER)] = StateTransition(
             ConversationState.THINKING, IntentType.CONFIRM_ORDER, ConversationState.THINKING,
-            False, False, AudioPhraseType.NO_ORDER_YET
-        )
-        transitions[(ConversationState.THINKING, IntentType.REPEAT)] = StateTransition(
-            ConversationState.THINKING, IntentType.REPEAT, ConversationState.THINKING,
             False, False, AudioPhraseType.NO_ORDER_YET
         )
         transitions[(ConversationState.THINKING, IntentType.QUESTION)] = StateTransition(
@@ -152,10 +144,6 @@ class DriveThruStateMachine:
             ConversationState.CLARIFYING, IntentType.CONFIRM_ORDER, ConversationState.CLARIFYING,
             False, False, AudioPhraseType.ADD_ITEMS_FIRST
         )
-        transitions[(ConversationState.CLARIFYING, IntentType.REPEAT)] = StateTransition(
-            ConversationState.CLARIFYING, IntentType.REPEAT, ConversationState.CLARIFYING,
-            False, False, AudioPhraseType.NO_ORDER_YET
-        )
         transitions[(ConversationState.CLARIFYING, IntentType.QUESTION)] = StateTransition(
             ConversationState.CLARIFYING, IntentType.QUESTION, ConversationState.CLARIFYING,
             True, False, AudioPhraseType.GREETING  # Will be overridden by question response
@@ -193,10 +181,6 @@ class DriveThruStateMachine:
         transitions[(ConversationState.CONFIRMING, IntentType.CONFIRM_ORDER)] = StateTransition(
             ConversationState.CONFIRMING, IntentType.CONFIRM_ORDER, ConversationState.CLOSING,
             True, False, AudioPhraseType.ORDER_COMPLETE
-        )
-        transitions[(ConversationState.CONFIRMING, IntentType.REPEAT)] = StateTransition(
-            ConversationState.CONFIRMING, IntentType.REPEAT, ConversationState.CONFIRMING,
-            True, False, AudioPhraseType.ORDER_READY
         )
         transitions[(ConversationState.CONFIRMING, IntentType.QUESTION)] = StateTransition(
             ConversationState.CONFIRMING, IntentType.QUESTION, ConversationState.CLARIFYING,
@@ -236,10 +220,6 @@ class DriveThruStateMachine:
             ConversationState.CLOSING, IntentType.CONFIRM_ORDER, ConversationState.CLOSING,
             False, False, AudioPhraseType.ORDER_ALREADY_CONFIRMED
         )
-        transitions[(ConversationState.CLOSING, IntentType.REPEAT)] = StateTransition(
-            ConversationState.CLOSING, IntentType.REPEAT, ConversationState.CLOSING,
-            True, False, AudioPhraseType.ORDER_PREPARED_WINDOW
-        )
         transitions[(ConversationState.CLOSING, IntentType.QUESTION)] = StateTransition(
             ConversationState.CLOSING, IntentType.QUESTION, ConversationState.CLOSING,
             True, False, AudioPhraseType.GREETING  # Will be overridden by question response
@@ -276,10 +256,6 @@ class DriveThruStateMachine:
         )
         transitions[(ConversationState.IDLE, IntentType.CONFIRM_ORDER)] = StateTransition(
             ConversationState.IDLE, IntentType.CONFIRM_ORDER, ConversationState.IDLE,
-            False, False, AudioPhraseType.GREETING
-        )
-        transitions[(ConversationState.IDLE, IntentType.REPEAT)] = StateTransition(
-            ConversationState.IDLE, IntentType.REPEAT, ConversationState.IDLE,
             False, False, AudioPhraseType.GREETING
         )
         transitions[(ConversationState.IDLE, IntentType.QUESTION)] = StateTransition(

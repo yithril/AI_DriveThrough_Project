@@ -478,7 +478,7 @@ class OrderSessionService(OrderSessionInterface):
                 return False
             
             # Update session in Redis
-            session_json = json.dumps(validated_session.dict())
+            session_json = json.dumps(validated_session.model_dump())
             success = await self.redis.set(f"session:{session_id}", session_json, ttl=900)
             
             if success:
@@ -538,7 +538,7 @@ class OrderSessionService(OrderSessionInterface):
                 return False
             
             # Create session in Redis
-            session_json = json.dumps(validated_session.dict())
+            session_json = json.dumps(validated_session.model_dump())
             success = await self.redis.set(f"session:{session_id}", session_json, ttl=900)
             
             if success:

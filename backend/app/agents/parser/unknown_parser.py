@@ -20,7 +20,7 @@ class UnknownParser(BaseParser):
     def __init__(self):
         super().__init__(IntentType.UNKNOWN)
     
-    def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
+    async def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
         """
         Parse unknown intent into command data.
         

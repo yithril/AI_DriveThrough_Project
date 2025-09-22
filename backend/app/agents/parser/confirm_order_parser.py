@@ -20,7 +20,7 @@ class ConfirmOrderParser(BaseParser):
     def __init__(self):
         super().__init__(IntentType.CONFIRM_ORDER)
     
-    def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
+    async def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
         """
         Parse confirm order intent into command data.
         

@@ -20,7 +20,7 @@ class QuestionParser(BaseParser):
     def __init__(self):
         super().__init__(IntentType.QUESTION)
     
-    def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
+    async def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
         """
         Parse question intent into command data.
         

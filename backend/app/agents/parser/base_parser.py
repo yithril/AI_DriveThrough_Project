@@ -49,7 +49,7 @@ class BaseParser(ABC):
         self.intent_type = intent_type
     
     @abstractmethod
-    def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
+    async def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
         """
         Parse user input and context into command data.
         

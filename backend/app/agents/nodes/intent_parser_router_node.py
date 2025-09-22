@@ -41,7 +41,7 @@ class IntentParserRouter:
             # IntentType.MODIFY_ITEM: ModifyItemParser()
         }
     
-    def parse_intent(self, intent_type: IntentType, user_input: str, context: Dict[str, Any]) -> ParserResult:
+    async def parse_intent(self, intent_type: IntentType, user_input: str, context: Dict[str, Any]) -> ParserResult:
         """
         Route intent to appropriate parser and return result.
         
@@ -58,18 +58,18 @@ class IntentParserRouter:
         
         try:
             # Parse the intent using the selected parser
-            result = parser.parse(user_input, context)
+            result = await parser.parse(user_input, context)
             return result
         except Exception as e:
             # If parsing fails, fall back to unknown parser
-            return self.parsers[IntentType.UNKNOWN].parse(user_input, context)
+            return await self.parsers[IntentType.UNKNOWN].parse(user_input, context)
     
     def get_supported_intents(self) -> list:
         """Get list of supported intent types."""
         return list(self.parsers.keys())
 
 
-async def intent_parser_router_node(state: ConversationWorkflowState) -> ConversationWorkflowState:
+async def intent_parser_router_node(state: ConversationWorkflowState, config = None) -> ConversationWorkflowState:
     """
     LangGraph node that routes classified intents to appropriate parsers.
     
@@ -85,6 +85,10 @@ async def intent_parser_router_node(state: ConversationWorkflowState) -> Convers
     # Create router instance
     router = IntentParserRouter()
     
+    # Get service factory and shared database session from config
+    service_factory = config.get("configurable", {}).get("service_factory") if config else None
+    shared_db_session = config.get("configurable", {}).get("shared_db_session") if config else None
+    
     # Build context for parsers
     context = {
         "order_items": state.order_state.line_items,
@@ -92,11 +96,13 @@ async def intent_parser_router_node(state: ConversationWorkflowState) -> Convers
         "conversation_history": state.conversation_history[-3:],  # Last 3 turns
         "last_mentioned_item": state.order_state.last_mentioned_item_ref,
         "restaurant_id": state.restaurant_id,
-        "session_id": state.session_id
+        "session_id": state.session_id,
+        "service_factory": service_factory,  # Pass the factory to parsers
+        "shared_db_session": shared_db_session  # Pass the shared session to parsers
     }
     
     # Route intent to appropriate parser
-    result = router.parse_intent(
+    result = await router.parse_intent(
         intent_type=state.intent_type,
         user_input=state.user_input,
         context=context
@@ -122,11 +128,7 @@ def should_continue_after_intent_parser_router(state: ConversationWorkflowState)
         state: Current conversation workflow state
         
     Returns:
-        Next node name: "command_executor" or "canned_response"
+        Next node name: "command_executor"
     """
-    # If we have commands, go to command executor
-    if state.commands:
-        return "command_executor"
-    
-    # If no commands or parsing failed, go to canned response
-    return "canned_response"
+    # Always go to command executor - it will handle empty commands appropriately
+    return "command_executor"

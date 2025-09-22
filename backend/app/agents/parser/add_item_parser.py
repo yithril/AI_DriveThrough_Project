@@ -25,7 +25,7 @@ class AddItemParser(BaseParser):
     def __init__(self):
         super().__init__(IntentType.ADD_ITEM)
     
-    def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
+    async def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
         """
         Parse ADD_ITEM intent using the existing ADD_ITEM agent
         
@@ -38,23 +38,34 @@ class AddItemParser(BaseParser):
         """
         try:
             # Create a mock state for the agent
+            from app.models.state_machine_models import OrderState
+            
+            # Create proper OrderState object
+            order_items = context.get("order_items", [])
+            order_state = OrderState(
+                line_items=order_items,
+                last_mentioned_item_ref=None,
+                totals={}
+            )
+            
             state = ConversationWorkflowState(
                 session_id=context.get("session_id", "test"),
                 restaurant_id=str(context.get("restaurant_id", 1)),
                 user_input=user_input,
                 normalized_user_input=user_input,
                 conversation_history=context.get("conversation_history", []),
-                order_state=context.get("order_items", []),
+                order_state=order_state,
                 current_state=context.get("current_state", "IDLE")
             )
             
-            # Create mock context for the agent
+            # Create context for the agent with service factory and shared session
             agent_context = {
-                "container": context.get("container")  # Pass through container if available
+                "service_factory": context.get("service_factory"),  # Pass through service factory
+                "shared_db_session": context.get("shared_db_session")  # Pass through shared session
             }
             
             # Call the existing ADD_ITEM agent
-            result_state = add_item_agent_node(state, agent_context)
+            result_state = await add_item_agent_node(state, agent_context)
             
             # Extract command data from the agent's result
             if result_state.commands:

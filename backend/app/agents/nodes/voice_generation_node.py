@@ -13,7 +13,7 @@ from app.constants.audio_phrases import AudioPhraseConstants
 logger = logging.getLogger(__name__)
 
 
-async def voice_generation_node(state: ConversationWorkflowState, context: Dict[str, Any]) -> ConversationWorkflowState:
+async def voice_generation_node(state: ConversationWorkflowState, config = None) -> ConversationWorkflowState:
     """
     Generate audio using the unified voice service API.
     
@@ -25,9 +25,9 @@ async def voice_generation_node(state: ConversationWorkflowState, context: Dict[
         Updated state with audio URL and response text
     """
     try:
-        # Get voice service from context
-        container = context.get("container")
-        voice_service = container.voice_service()
+        # Get voice service from factory
+        service_factory = config.get("configurable", {}).get("service_factory") if config else None
+        voice_service = service_factory.create_voice_service() if service_factory else None
         
         if not voice_service:
             logger.error("Voice service not available")

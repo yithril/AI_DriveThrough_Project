@@ -8,6 +8,9 @@ Uses LangGraph to orchestrate the conversation flow.
 from typing import Dict, Any, TypedDict
 from langgraph.graph import StateGraph, END
 from app.agents.state import ConversationWorkflowState
+from app.core.database import get_db
+from app.core.unit_of_work import UnitOfWork
+from app.core.service_factory import create_service_factory
 from app.agents.nodes import (
     intent_classifier_node,
     should_continue_after_intent_classifier,
@@ -45,6 +48,10 @@ class ConversationWorkflow:
         # Create the state graph
         workflow = StateGraph(ConversationWorkflowState)
         
+        # Build node-specific service bundles
+        # Note: These will be built at runtime when container is available
+        # For now, we'll pass None and build bundles in process_conversation_turn
+        
         # Add all the nodes
         workflow.add_node("intent_classifier", intent_classifier_node)
         workflow.add_node("state_transition", state_transition_node)
@@ -78,7 +85,8 @@ class ConversationWorkflow:
             "intent_parser_router",
             should_continue_after_intent_parser_router,
             {
-                "command_executor": "command_executor"
+                "command_executor": "command_executor",
+                "voice_generation": "voice_generation"
             }
         )
         
@@ -120,18 +128,39 @@ class ConversationWorkflow:
         
         return workflow.compile()
     
-    async def process_conversation_turn(self, state: ConversationWorkflowState) -> ConversationWorkflowState:
+    async def process_conversation_turn(self, state: ConversationWorkflowState, context: Dict[str, Any] = None) -> ConversationWorkflowState:
         """
         Process a single conversation turn through the workflow.
         
         Args:
             state: Initial conversation state
+            context: LangGraph context containing services
             
         Returns:
             Updated state with final response and audio URL
         """
-        # Run the workflow
-        result = await self.graph.ainvoke(state)
+        # Create service factory and shared database session for nodes
+        if context and "container" in context:
+            container = context["container"]
+            service_factory = create_service_factory(container)
+            
+            # Create a shared database session for this workflow execution
+            async def get_shared_db_session():
+                async for session in get_db():
+                    return session
+            
+            shared_db_session = await get_shared_db_session()
+            
+            context["service_factory"] = service_factory
+            context["shared_db_session"] = shared_db_session
+        
+        # Run the workflow with context
+        if context:
+            result = await self.graph.ainvoke(state, config={"configurable": context})
+        else:
+            result = await self.graph.ainvoke(state)
+        
+        # LangGraph returns the final state directly
         return result
     
     def get_workflow_graph(self) -> Dict[str, Any]:

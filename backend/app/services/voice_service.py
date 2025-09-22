@@ -63,15 +63,12 @@ class VoiceService:
         Returns:
             MD5 hex string safe for S3 object keys
         """
-        # Use config defaults if not provided - fail loudly if not configured
-        voice = voice or settings.TTS_VOICE
-        language = language or settings.TTS_LANGUAGE
+        # Use config defaults if not provided - with fallbacks
+        voice = voice or settings.TTS_VOICE or "nova"  # Fallback to nova if not set
+        language = language or settings.TTS_LANGUAGE or "english"  # Fallback to english if not set
         
-        # Validate configuration
-        if not voice or voice == "":
-            raise ValueError("TTS_VOICE environment variable is not set or empty. Please configure voice settings.")
-        if not language or language == "":
-            raise ValueError("TTS_LANGUAGE environment variable is not set or empty. Please configure language settings.")
+        # Log the voice settings being used
+        logger.info(f"Using TTS voice: {voice}, language: {language}")
         
         # Include all parameters that affect the generated audio
         cache_content = f"{text}_{voice}_{language}_{restaurant_id or 'default'}"
@@ -187,15 +184,12 @@ class VoiceService:
             logger.warning("Cannot generate voice for empty text")
             return None
         
-        # Use config defaults if not provided - fail loudly if not configured
-        voice = voice or settings.TTS_VOICE
-        language = language or settings.TTS_LANGUAGE
+        # Use config defaults if not provided - with fallbacks
+        voice = voice or settings.TTS_VOICE or "nova"  # Fallback to nova if not set
+        language = language or settings.TTS_LANGUAGE or "english"  # Fallback to english if not set
         
-        # Validate configuration
-        if not voice or voice == "":
-            raise ValueError("TTS_VOICE environment variable is not set or empty. Please configure voice settings.")
-        if not language or language == "":
-            raise ValueError("TTS_LANGUAGE environment variable is not set or empty. Please configure language settings.")
+        # Log the voice settings being used
+        logger.info(f"Using TTS voice: {voice}, language: {language}")
         
         try:
             # Generate cache key and path
