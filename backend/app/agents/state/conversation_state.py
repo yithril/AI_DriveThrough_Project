@@ -18,24 +18,68 @@ from app.constants.audio_phrases import AudioPhraseType
 @dataclass
 class ConversationWorkflowState:
     """
-    Simple state object that flows through the LangGraph workflow.
+    State object that flows through the LangGraph workflow.
     
-    Contains only the essential data needed for conversation flow:
-    - Conversation history and context
-    - Current and target states
-    - User input
-    - Intermediate results
+    Organized by which nodes use which properties for easier understanding.
     """
     
-    # Core conversation data
+    # =============================================================================
+    # CORE DATA (used by all nodes)
+    # =============================================================================
     session_id: str
     restaurant_id: str
     user_input: str = ""  # What the person said
     
-    # Conversation context
-    conversation_history: List[Dict[str, Any]] = field(default_factory=list)
+    # =============================================================================
+    # INTENT CLASSIFIER NODE (populates these)
+    # =============================================================================
+    intent_type: Optional[IntentType] = None
+    intent_confidence: float = 0.0
+    intent_slots: Dict[str, Any] = field(default_factory=dict)
+    
+    # =============================================================================
+    # STATE MACHINE NODE (uses intent data, populates transition results)
+    # =============================================================================
     current_state: ConversationState = ConversationState.IDLE
     target_state: Optional[ConversationState] = None
+    transition_requires_command: bool = False
+    transition_is_valid: bool = True
+    
+    # =============================================================================
+    # INTENT PARSER ROUTER NODE (uses intent data, populates commands)
+    # =============================================================================
+    commands: List[Dict[str, Any]] = field(default_factory=list)
+    
+    # =============================================================================
+    # COMMAND EXECUTOR NODE (uses commands, populates batch result)
+    # =============================================================================
+    command_batch_result: Optional[CommandBatchResult] = None
+    order_state_changed: bool = False  # True if order was modified during this turn
+    
+    # =============================================================================
+    # RESPONSE ROUTER NODE (uses batch result, populates routing context)
+    # =============================================================================
+    next_node: Optional[str] = None  # "canned_response", "follow_up_agent", "dynamic_voice_response"
+    response_context: Dict[str, Any] = field(default_factory=dict)  # Context for next node
+    
+    # =============================================================================
+    # VOICE GENERATION NODE (uses phrase type and custom text to generate audio)
+    # =============================================================================
+    # Required for voice generation:
+    response_phrase_type: Optional[AudioPhraseType] = None  # Set by response router
+    # Optional for voice generation:
+    custom_response_text: Optional[str] = None  # Custom text for dynamic phrases
+    
+    # =============================================================================
+    # RESPONSE NODES OUTPUT (populated by voice generation and clarification agent)
+    # =============================================================================
+    response_text: str = ""  # Text content of the response
+    audio_url: Optional[str] = None  # S3 URL to the generated audio file
+    
+    # =============================================================================
+    # CONVERSATION CONTEXT (used by multiple nodes)
+    # =============================================================================
+    conversation_history: List[Dict[str, Any]] = field(default_factory=list)
     order_state: OrderState = field(default_factory=lambda: OrderState(
         line_items=[],
         last_mentioned_item_ref=None,
@@ -49,26 +93,9 @@ class ConversationWorkflowState:
         expectation="free_form_ordering"
     ))
     
-    # Intermediate results that get populated as we go through nodes
-    intent_type: Optional[IntentType] = None
-    intent_confidence: float = 0.0
-    intent_slots: Dict[str, Any] = field(default_factory=dict)
-    
-    # State machine transition results
-    transition_requires_command: bool = False
-    transition_is_valid: bool = True
-    response_phrase_type: Optional[AudioPhraseType] = None
-    
-    commands: List[Dict[str, Any]] = field(default_factory=list)
-    command_batch_result: Optional[CommandBatchResult] = None
-    
-    response_text: str = ""
-    audio_url: Optional[str] = None
-    
-    # Order state tracking
-    order_state_changed: bool = False  # True if order was modified during this turn
-    
-    # Simple error tracking
+    # =============================================================================
+    # ERROR TRACKING (used by all nodes)
+    # =============================================================================
     errors: List[str] = field(default_factory=list)
     
     def add_error(self, error: str) -> None:

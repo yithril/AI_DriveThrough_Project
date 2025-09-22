@@ -251,6 +251,84 @@ class VoiceService:
             logger.error(f"Failed to clear voice cache: {str(e)}")
             return False
     
+    # ===== UNIFIED AUDIO GENERATION =====
+    
+    async def generate_audio(
+        self, 
+        phrase_type: AudioPhraseType, 
+        restaurant_id: int,
+        custom_text: Optional[str] = None,
+        restaurant_name: str = None
+    ) -> Optional[str]:
+        """
+        Unified method for generating all audio (canned or dynamic).
+        
+        Args:
+            phrase_type: Type of audio phrase to generate
+            restaurant_id: Restaurant ID for multitenancy (required)
+            custom_text: Custom text for dynamic phrases (optional)
+            restaurant_name: Restaurant name for customization
+            
+        Returns:
+            URL to the audio file, or None if failed
+        """
+        try:
+            # Determine if this is a canned phrase or dynamic
+            if self._is_canned_phrase(phrase_type) and not custom_text:
+                # Use pre-recorded audio
+                return await self.get_canned_phrase(phrase_type, restaurant_id, restaurant_name)
+            else:
+                # Generate TTS with custom text or fallback text
+                text = custom_text or AudioPhraseConstants.get_phrase_text(phrase_type, restaurant_name)
+                return await self._generate_tts(text, restaurant_id)
+                
+        except Exception as e:
+            logger.error(f"Audio generation failed: {str(e)}")
+            return None
+    
+    def _is_canned_phrase(self, phrase_type: AudioPhraseType) -> bool:
+        """
+        Determine if a phrase type should use pre-recorded audio.
+        
+        Args:
+            phrase_type: Type of audio phrase
+            
+        Returns:
+            True if should use canned audio, False for TTS
+        """
+        # Dynamic phrases that always use TTS
+        dynamic_phrases = {
+            AudioPhraseType.CUSTOM_RESPONSE,
+            AudioPhraseType.CLARIFICATION_QUESTION,
+            AudioPhraseType.ERROR_MESSAGE,
+            AudioPhraseType.LLM_GENERATED
+        }
+        
+        return phrase_type not in dynamic_phrases
+    
+    async def _generate_tts(self, text: str, restaurant_id: int) -> Optional[str]:
+        """
+        Generate TTS audio for dynamic content.
+        
+        Args:
+            text: Text to convert to speech
+            restaurant_id: Restaurant ID for multitenancy
+            
+        Returns:
+            URL to the audio file, or None if failed
+        """
+        try:
+            # Use existing generate_voice method
+            return await self.generate_voice(
+                text=text,
+                voice=AudioPhraseConstants.STANDARD_VOICE,
+                language="english",
+                restaurant_id=restaurant_id
+            )
+        except Exception as e:
+            logger.error(f"TTS generation failed: {str(e)}")
+            return None
+    
     # ===== CANNED AUDIO FUNCTIONALITY =====
     
     async def get_canned_phrase(

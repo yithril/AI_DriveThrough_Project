@@ -11,8 +11,8 @@ from app.agents.state import ConversationWorkflowState
 from app.agents.nodes import (
     intent_classifier_node,
     should_continue_after_intent_classifier,
-    transition_decision_node,
-    should_continue_after_transition_decision,
+    state_transition_node,
+    should_continue_after_state_transition,
     command_executor_node,
     should_continue_after_command_executor,
     follow_up_agent_node,
@@ -22,7 +22,7 @@ from app.agents.nodes import (
     canned_response_node,
     should_continue_after_canned_response
 )
-from app.agents.parser.intent_parser_router import (
+from app.agents.nodes.intent_parser_router import (
     intent_parser_router_node,
     should_continue_after_intent_parser_router
 )
@@ -47,7 +47,7 @@ class ConversationWorkflow:
         
         # Add all the nodes
         workflow.add_node("intent_classifier", intent_classifier_node)
-        workflow.add_node("transition_decision", transition_decision_node)
+        workflow.add_node("state_transition", state_transition_node)
         workflow.add_node("intent_parser_router", intent_parser_router_node)
         workflow.add_node("command_executor", command_executor_node)
         workflow.add_node("follow_up_agent", follow_up_agent_node)
@@ -62,14 +62,14 @@ class ConversationWorkflow:
             "intent_classifier",
             should_continue_after_intent_classifier,
             {
-                "transition_decision": "transition_decision",
+                "state_transition": "state_transition",
                 "canned_response": "canned_response"
             }
         )
         
         workflow.add_conditional_edges(
-            "transition_decision",
-            should_continue_after_transition_decision,
+            "state_transition",
+            should_continue_after_state_transition,
             {
                 "intent_parser_router": "intent_parser_router",
                 "canned_response": "canned_response"

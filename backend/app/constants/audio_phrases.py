@@ -39,6 +39,20 @@ class AudioPhraseType(Enum):
     ORDER_CORRECT = "order_correct"
     ORDER_NOT_UNDERSTOOD = "order_not_understood"
     ORDER_PREPARED_WINDOW = "order_prepared_window"
+    
+    # Command-specific success phrases
+    ITEM_ADDED_SUCCESS = "item_added_success"
+    ITEM_REMOVED_SUCCESS = "item_removed_success" 
+    ITEM_UPDATED_SUCCESS = "item_updated_success"
+    ORDER_CLEARED_SUCCESS = "order_cleared_success"
+    NOTHING_TO_REPEAT = "nothing_to_repeat"
+    SYSTEM_ERROR_RETRY = "system_error_retry"
+    
+    # Dynamic phrases (require custom text)
+    CUSTOM_RESPONSE = "custom_response"
+    CLARIFICATION_QUESTION = "clarification_question"
+    ERROR_MESSAGE = "error_message"
+    LLM_GENERATED = "llm_generated"
 
 
 class AudioPhraseConstants:
@@ -94,7 +108,21 @@ class AudioPhraseConstants:
             AudioPhraseType.WELCOME_MENU: f"Welcome to {restaurant_name or '{restaurant}'}! Take your time looking at our menu.",
             AudioPhraseType.ORDER_CORRECT: "Is this order correct?",
             AudioPhraseType.ORDER_NOT_UNDERSTOOD: "I'm sorry, I didn't understand. Is this order correct?",
-            AudioPhraseType.ORDER_PREPARED_WINDOW: "Your order: [order summary] is being prepared. Drive up to the next window!"
+            AudioPhraseType.ORDER_PREPARED_WINDOW: "Your order: [order summary] is being prepared. Drive up to the next window!",
+            
+            # Command-specific success phrases
+            AudioPhraseType.ITEM_ADDED_SUCCESS: "Added that to your order. Would you like anything else?",
+            AudioPhraseType.ITEM_REMOVED_SUCCESS: "Removed that from your order. Would you like anything else?",
+            AudioPhraseType.ITEM_UPDATED_SUCCESS: "Updated your item. Would you like anything else?",
+            AudioPhraseType.ORDER_CLEARED_SUCCESS: "Your order has been cleared.",
+            AudioPhraseType.NOTHING_TO_REPEAT: "There's nothing to repeat yet.",
+            AudioPhraseType.SYSTEM_ERROR_RETRY: "I'm sorry, I'm having some technical difficulties. Please try again.",
+            
+            # Dynamic phrases (fallback text - usually overridden with custom_text)
+            AudioPhraseType.CUSTOM_RESPONSE: "Custom response",
+            AudioPhraseType.CLARIFICATION_QUESTION: "I need more information to help you.",
+            AudioPhraseType.ERROR_MESSAGE: "I'm sorry, there was an error processing your request.",
+            AudioPhraseType.LLM_GENERATED: "LLM generated response"
         }
         return phrases.get(phrase_type, "")
     

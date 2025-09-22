@@ -55,11 +55,11 @@ class TestWorkflowOrchestration:
         expected_nodes = [
             "intent_classifier",
             "transition_decision", 
-            "command_agent",
+            "intent_parser_router",
             "command_executor",
-            "follow_up_agent",
-            "dynamic_voice_response",
-            "canned_response"
+            "response_router",
+            "clarification_agent",
+            "voice_generation"
         ]
         
         # Check that graph has the expected structure
@@ -101,8 +101,8 @@ class TestWorkflowOrchestration:
         assert next_node == "canned_response"
 
     @pytest.mark.asyncio
-    async def test_transition_decision_to_command_agent_routing(self, workflow):
-        """Test routing from transition_decision to command_agent when command needed"""
+    async def test_transition_decision_to_intent_parser_router_routing(self, workflow):
+        """Test routing from transition_decision to intent_parser_router when command needed"""
         from app.agents.nodes import should_continue_after_transition_decision
         
         # State that requires a command
@@ -110,13 +110,13 @@ class TestWorkflowOrchestration:
                 .with_transition_result(requires_command=True)
                 .build())
         
-        # Should route to command_agent
+        # Should route to intent_parser_router
         next_node = should_continue_after_transition_decision(state)
-        assert next_node == "command_agent"
+        assert next_node == "intent_parser_router"
 
     @pytest.mark.asyncio
-    async def test_transition_decision_to_canned_response_routing(self, workflow):
-        """Test routing from transition_decision to canned_response when no command needed"""
+    async def test_transition_decision_to_voice_generation_routing(self, workflow):
+        """Test routing from transition_decision to voice_generation when no command needed"""
         from app.agents.nodes import should_continue_after_transition_decision
         
         # State that doesn't require a command
@@ -124,14 +124,14 @@ class TestWorkflowOrchestration:
                 .with_transition_result(requires_command=False, phrase_type=AudioPhraseType.GREETING)
                 .build())
         
-        # Should route to canned_response
+        # Should route to voice_generation
         next_node = should_continue_after_transition_decision(state)
-        assert next_node == "canned_response"
+        assert next_node == "voice_generation"
 
     @pytest.mark.asyncio
-    async def test_command_agent_to_command_executor_routing(self, workflow):
-        """Test routing from command_agent to command_executor when commands generated"""
-        from app.agents.nodes import should_continue_after_command_agent
+    async def test_intent_parser_router_to_command_executor_routing(self, workflow):
+        """Test routing from intent_parser_router to command_executor when commands generated"""
+        from app.agents.nodes import should_continue_after_intent_parser_router
         
         # State with generated commands
         state = (ConversationWorkflowStateBuilder()
@@ -139,22 +139,8 @@ class TestWorkflowOrchestration:
                 .build())
         
         # Should route to command_executor
-        next_node = should_continue_after_command_agent(state)
+        next_node = should_continue_after_intent_parser_router(state)
         assert next_node == "command_executor"
-
-    @pytest.mark.asyncio
-    async def test_command_agent_to_canned_response_routing(self, workflow):
-        """Test routing from command_agent to canned_response when no commands generated"""
-        from app.agents.nodes import should_continue_after_command_agent
-        
-        # State with no commands
-        state = (ConversationWorkflowStateBuilder()
-                .with_commands([])
-                .build())
-        
-        # Should route to canned_response
-        next_node = should_continue_after_command_agent(state)
-        assert next_node == "canned_response"
 
     @pytest.mark.asyncio
     async def test_command_executor_to_follow_up_agent_routing(self, workflow):
@@ -286,20 +272,20 @@ class TestWorkflowOrchestration:
         # Mock all the node functions to prevent actual execution
         with patch('app.agents.nodes.intent_classifier_node') as mock_intent, \
              patch('app.agents.nodes.transition_decision_node') as mock_transition, \
-             patch('app.agents.nodes.command_agent_node') as mock_command_agent, \
+             patch('app.agents.nodes.intent_parser_router_node') as mock_parser_router, \
              patch('app.agents.nodes.command_executor_node') as mock_executor, \
-             patch('app.agents.nodes.follow_up_agent_node') as mock_follow_up, \
-             patch('app.agents.nodes.dynamic_voice_response_node') as mock_voice, \
-             patch('app.agents.nodes.canned_response_node') as mock_canned:
+             patch('app.agents.nodes.response_router_node') as mock_response_router, \
+             patch('app.agents.nodes.clarification_agent_node') as mock_clarification, \
+             patch('app.agents.nodes.voice_generation_node') as mock_voice_generation:
             
             # Set up mocks to return the state unchanged
             mock_intent.return_value = initial_state
             mock_transition.return_value = initial_state
-            mock_command_agent.return_value = initial_state
+            mock_parser_router.return_value = initial_state
             mock_executor.return_value = initial_state
-            mock_follow_up.return_value = initial_state
-            mock_voice.return_value = initial_state
-            mock_canned.return_value = initial_state
+            mock_response_router.return_value = initial_state
+            mock_clarification.return_value = initial_state
+            mock_voice_generation.return_value = initial_state
             
             # This should not raise an error, indicating the workflow structure is correct
             try:
@@ -353,7 +339,7 @@ class TestWorkflowStateTransitions:
         route2 = should_continue_after_transition_decision(state2)
         
         assert route1 == route2
-        assert route1 == "command_agent"
+        assert route1 == "intent_parser_router"
 
 
 class TestWorkflowErrorHandling:
@@ -377,16 +363,16 @@ class TestWorkflowErrorHandling:
 
     def test_routing_with_empty_lists(self):
         """Test routing with empty command lists"""
-        from app.agents.nodes import should_continue_after_command_agent
+        from app.agents.nodes import should_continue_after_intent_parser_router
         
         # State with empty commands
         state = (ConversationWorkflowStateBuilder()
                 .with_commands([])
                 .build())
         
-        # Should route to canned_response
-        next_node = should_continue_after_command_agent(state)
-        assert next_node == "canned_response"
+        # Should route to voice_generation
+        next_node = should_continue_after_intent_parser_router(state)
+        assert next_node == "voice_generation"
 
     def test_routing_with_invalid_confidence(self):
         """Test routing with invalid confidence values"""
