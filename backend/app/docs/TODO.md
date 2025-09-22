@@ -9,6 +9,17 @@
   - Add validation for all pricing calculations
   - Consider size-based pricing if needed
 
+## Input Processing & Normalization
+
+- [x] **Add normalized user input field to workflow state** - Clean up user input at intent classifier stage
+  - Keep original user input in state for reference
+  - Add `normalized_user_input` field to `ConversationWorkflowState`
+  - Use intent classifier to clean up noise (music, background conversations, screaming kids)
+  - Improve parsing accuracy by removing irrelevant audio artifacts
+  - Update all agents to use normalized input instead of raw input
+  - Consider using LLM to extract just the ordering-relevant parts
+  - **STOPGAP IMPLEMENTED**: Field added, currently just copies original input
+
 ## Advanced Pricing System (Future)
 
 - [ ] **Create Pricing Service with Strategy Pattern** - Handle complex pricing scenarios

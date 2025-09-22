@@ -22,7 +22,7 @@ class TestCommandFactory:
         
         expected_intents = [
             "ADD_ITEM", "REMOVE_ITEM", "CLEAR_ORDER", "CONFIRM_ORDER",
-            "REPEAT", "QUESTION", "UNKNOWN"
+            "QUESTION", "UNKNOWN"
         ]
         
         for intent in expected_intents:
@@ -158,26 +158,6 @@ class TestCommandFactory:
         assert command.restaurant_id == 1
         assert command.order_id == 100
     
-    def test_create_command_repeat(self):
-        """Test creating RepeatCommand"""
-        intent_data = {
-            "intent": "REPEAT",
-            "confidence": 1.0,
-            "slots": {
-                "scope": "full_order",
-                "target_ref": "last_item"
-            },
-            "needs_clarification": False
-        }
-        
-        command = CommandFactory.create_command(intent_data, 1, 100)
-        
-        assert command is not None
-        assert command.__class__.__name__ == "RepeatCommand"
-        assert command.restaurant_id == 1
-        assert command.order_id == 100
-        assert command.scope == "full_order"
-        assert command.target_ref == "last_item"
     
     def test_create_command_question(self):
         """Test creating QuestionCommand"""
@@ -251,17 +231,16 @@ class TestCommandFactory:
     def test_create_command_with_defaults(self):
         """Test creating commands with default values"""
         intent_data = {
-            "intent": "REPEAT",
+            "intent": "QUESTION",
             "confidence": 1.0,
-            "slots": {},  # No scope or target_ref provided
+            "slots": {},  # No question provided
             "needs_clarification": False
         }
         
         command = CommandFactory.create_command(intent_data, 1, 100)
         
         assert command is not None
-        assert command.scope == "full_order"  # Default value
-        assert command.target_ref == "last_item"  # Default value
+        assert command.question == "How can I help you?"  # Default value
     
     def test_create_command_exception_handling(self):
         """Test that exceptions during command creation are handled"""
@@ -379,7 +358,7 @@ class TestCommandFactory:
         """Test creating commands for all supported intent types"""
         intent_types = [
             "ADD_ITEM", "REMOVE_ITEM", "CLEAR_ORDER", "CONFIRM_ORDER",
-            "REPEAT", "QUESTION", "UNKNOWN"
+            "QUESTION", "UNKNOWN"
         ]
         
         for intent_type in intent_types:
@@ -389,7 +368,7 @@ class TestCommandFactory:
                 slots = {"item_id": 123}
             elif intent_type == "REMOVE_ITEM":
                 slots = {"target_ref": "last_item"}
-            elif intent_type in ["REPEAT", "QUESTION", "UNKNOWN"]:
+            elif intent_type in ["QUESTION", "UNKNOWN"]:
                 slots = {}  # These can work with empty slots
             
             intent_data = {

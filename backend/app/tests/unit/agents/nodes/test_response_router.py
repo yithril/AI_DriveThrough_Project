@@ -7,7 +7,7 @@ Tests the simplified 2-category response routing logic:
 """
 
 import pytest
-from app.agents.nodes.response_router import response_router_node, should_continue_after_response_router, _get_success_phrase_type
+from app.agents.nodes.response_router_node import response_router_node, should_continue_after_response_router, _get_success_phrase_type
 from app.agents.state.conversation_state import ConversationWorkflowState
 from app.models.state_machine_models import OrderState, ConversationContext
 from app.dto.order_result import CommandBatchResult, OrderResult, ResponsePayload

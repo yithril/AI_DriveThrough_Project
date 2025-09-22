@@ -179,7 +179,7 @@ def should_continue_after_clarification_agent(state: ConversationWorkflowState) 
         state: Current conversation workflow state
         
     Returns:
-        Next node name: "END" (clarification responses are complete)
+        Next node name: "voice_generation" (generate audio for clarification response)
     """
-    # Clarification responses are complete - they already have audio_url
-    return "END"
+    # Clarification responses need to be converted to audio
+    return "voice_generation"

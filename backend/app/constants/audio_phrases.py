@@ -20,10 +20,10 @@ class AudioPhraseType(Enum):
     ORDER_CONFIRM = "order_confirm"
     ORDER_COMPLETE = "order_complete"
     SCREEN_CONFIRM = "screen_confirm"
+    ORDER_REPEAT = "order_repeat"
     
     # State machine specific phrases
     ORDER_SUMMARY = "order_summary"
-    ORDER_REPEAT = "order_repeat"
     CONTINUE_ORDERING = "continue_ordering"
     NO_ORDER_YET = "no_order_yet"
     TAKE_YOUR_TIME = "take_your_time"
@@ -46,8 +46,8 @@ class AudioPhraseType(Enum):
     ITEM_REMOVED_SUCCESS = "item_removed_success" 
     ITEM_UPDATED_SUCCESS = "item_updated_success"
     ORDER_CLEARED_SUCCESS = "order_cleared_success"
-    NOTHING_TO_REPEAT = "nothing_to_repeat"
     SYSTEM_ERROR_RETRY = "system_error_retry"
+    NOTHING_TO_REPEAT = "nothing_to_repeat"
     
     # Dynamic phrases (require custom text)
     CUSTOM_RESPONSE = "custom_response"

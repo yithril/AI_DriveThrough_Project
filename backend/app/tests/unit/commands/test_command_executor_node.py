@@ -16,7 +16,7 @@ sys.path.insert(0, str(backend_dir))
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from app.agents.state import ConversationWorkflowState
-from app.agents.nodes.command_executor import command_executor_node, should_continue_after_command_executor
+from app.agents.nodes.command_executor_node import command_executor_node, should_continue_after_command_executor
 from app.dto.order_result import OrderResult, CommandBatchResult
 from app.commands.intent_classification_schema import IntentType
 
@@ -331,13 +331,13 @@ class TestCommandExecutorRouting:
         result = should_continue_after_command_executor(state_with_failed_batch)
         assert result == "follow_up_agent"
 
-    def test_route_to_dynamic_voice_response_on_stop(self, state_with_successful_batch):
-        """Test routing to dynamic_voice_response when batch outcome indicates completion"""
+    def test_route_to_response_router_on_stop(self, state_with_successful_batch):
+        """Test routing to response_router when batch outcome indicates completion"""
         # Set the batch outcome to indicate completion
         state_with_successful_batch.command_batch_result.batch_outcome = "ALL_SUCCESS"
         
         result = should_continue_after_command_executor(state_with_successful_batch)
-        assert result == "dynamic_voice_response"
+        assert result == "response_router"
 
     def test_route_to_follow_up_agent_on_failures(self, state_with_failed_batch):
         """Test routing to follow_up_agent when commands have failures"""
@@ -347,7 +347,7 @@ class TestCommandExecutorRouting:
     def test_route_to_dynamic_voice_response_on_success(self, state_with_successful_batch):
         """Test routing to dynamic_voice_response when all commands succeed"""
         result = should_continue_after_command_executor(state_with_successful_batch)
-        assert result == "dynamic_voice_response"
+        assert result == "response_router"
 
     def test_route_to_follow_up_agent_on_validation_errors(self):
         """Test routing to follow_up_agent when there are validation errors"""
@@ -386,7 +386,7 @@ class TestCommandExecutorRouting:
         )
         
         result = should_continue_after_command_executor(state)
-        assert result == "dynamic_voice_response"
+        assert result == "response_router"
 
 
 class TestCommandExecutorIntegration:

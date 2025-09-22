@@ -65,6 +65,10 @@ async def intent_classifier_node(state: ConversationWorkflowState) -> Conversati
         state.intent_type = result.intent
         state.intent_confidence = result.confidence
         # No more slots - the original text is preserved in state.user_input
+        
+        # TODO: Implement input normalization logic here
+        # For now, just copy the original input as a stopgap
+        state.normalized_user_input = state.user_input
 
         
         logger.info(f"Intent classified: {result.intent} (confidence: {result.confidence})")
@@ -76,6 +80,8 @@ async def intent_classifier_node(state: ConversationWorkflowState) -> Conversati
         state.intent_confidence = 0.1
         state.intent_slots = {}
         state.response_phrase_type = AudioPhraseType.DIDNT_UNDERSTAND
+        # Set normalized input as fallback
+        state.normalized_user_input = state.user_input
     
     # Final check for low confidence intents (covers both LLM low confidence and parse errors)
     if state.intent_confidence < 0.8:
@@ -93,11 +99,11 @@ def should_continue_after_intent_classifier(state: ConversationWorkflowState) ->
         state: Current conversation workflow state
         
     Returns:
-        Next node name: "transition_decision" or "canned_response"
+        Next node name: "state_transition" or "voice_generation"
     """
     # High confidence (≥0.8) → proceed to state machine validation
     if state.intent_confidence >= 0.8:
-        return "transition_decision"
+        return "state_transition"
     
-    # Low confidence (<0.8) → use canned "didn't understand" response
-    return "canned_response"
+    # Low confidence (<0.8) → generate "didn't understand" response
+    return "voice_generation"

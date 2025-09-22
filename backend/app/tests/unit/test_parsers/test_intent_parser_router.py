@@ -3,7 +3,7 @@ Unit tests for IntentParserRouter
 """
 
 import pytest
-from app.agents.parser.intent_parser_router import IntentParserRouter
+from app.agents.nodes.intent_parser_router_node import IntentParserRouter
 from app.agents.parser.base_parser import ParserResult
 from app.commands.intent_classification_schema import IntentType
 
@@ -18,10 +18,9 @@ class TestIntentParserRouter:
     
     def test_router_initialization(self, router):
         """Test router initializes correctly with all parsers"""
-        assert len(router.parsers) == 5  # All 5 rule-based parsers
+        assert len(router.parsers) == 6  # All 6 rule-based parsers
         assert IntentType.CLEAR_ORDER in router.parsers
         assert IntentType.CONFIRM_ORDER in router.parsers
-        assert IntentType.REPEAT in router.parsers
         assert IntentType.QUESTION in router.parsers
         assert IntentType.UNKNOWN in router.parsers
     
@@ -49,18 +48,6 @@ class TestIntentParserRouter:
         assert result.command_data["intent"] == "CONFIRM_ORDER"
         assert result.command_data["slots"] == {}
     
-    def test_parse_intent_repeat(self, router):
-        """Test routing REPEAT intent"""
-        result = router.parse_intent(
-            intent_type=IntentType.REPEAT,
-            user_input="repeat my order",
-            context={}
-        )
-        
-        assert result.success is True
-        assert result.command_data["intent"] == "REPEAT"
-        assert "scope" in result.command_data["slots"]
-        assert "target_ref" in result.command_data["slots"]
     
     def test_parse_intent_question(self, router):
         """Test routing QUESTION intent"""
@@ -98,13 +85,13 @@ class TestIntentParserRouter:
         }
         
         result = router.parse_intent(
-            intent_type=IntentType.REPEAT,
-            user_input="repeat my order",
+            intent_type=IntentType.QUESTION,
+            user_input="what's on the menu?",
             context=context
         )
         
         assert result.success is True
-        assert result.command_data["intent"] == "REPEAT"
+        assert result.command_data["intent"] == "QUESTION"
     
     def test_parse_intent_unsupported_intent(self, router):
         """Test parsing unsupported intent falls back to UNKNOWN"""
@@ -148,10 +135,9 @@ class TestIntentParserRouter:
         """Test getting supported intent types"""
         supported_intents = router.get_supported_intents()
         
-        assert len(supported_intents) == 5
+        assert len(supported_intents) == 6
         assert IntentType.CLEAR_ORDER in supported_intents
         assert IntentType.CONFIRM_ORDER in supported_intents
-        assert IntentType.REPEAT in supported_intents
         assert IntentType.QUESTION in supported_intents
         assert IntentType.UNKNOWN in supported_intents
     
@@ -205,10 +191,10 @@ class TestIntentParserRouter:
         }
         
         result = router.parse_intent(
-            intent_type=IntentType.REPEAT,
-            user_input="repeat my order",
+            intent_type=IntentType.CLEAR_ORDER,
+            user_input="clear my order",
             context=complex_context
         )
         
         assert result.success is True
-        assert result.command_data["intent"] == "REPEAT"
+        assert result.command_data["intent"] == "CLEAR_ORDER"

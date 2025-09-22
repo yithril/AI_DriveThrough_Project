@@ -1,38 +1,33 @@
 """
 Add Item Parser
 
-Handles ADD_ITEM intents that require complex parsing to extract
-structured data from natural language input.
-
-TODO: Implement LLM-based parsing for complex ADD_ITEM requests
-- Customization requests (e.g., "I want a burger with no pickles, extra cheese")
-- Ingredient modifications (e.g., "Make it gluten-free")
-- Special cooking instructions (e.g., "Well done", "Medium rare")
-- Allergen considerations (e.g., "No nuts", "Dairy-free")
-- Complex quantity specifications (e.g., "Two of the same burger")
-- Multi-item requests (e.g., "I'll have a burger and fries")
+LLM-based parser for ADD_ITEM intents that wraps the existing ADD_ITEM agent.
+Extracts structured data from natural language input using OpenAI GPT-4.
 """
 
+import logging
 from typing import Dict, Any
 from .base_parser import BaseParser, ParserResult
 from ...commands.intent_classification_schema import IntentType
+from ...agents.command_agents.add_item_agent import add_item_agent_node
+from ...agents.state import ConversationWorkflowState
+
+logger = logging.getLogger(__name__)
 
 
 class AddItemParser(BaseParser):
     """
-    Parser for ADD_ITEM intents
+    LLM-based parser for ADD_ITEM intents
     
-    This parser handles ADD_ITEM requests that require complex
-    natural language processing to extract structured data.
+    Wraps the existing ADD_ITEM agent to follow the standard parser pattern.
     """
     
     def __init__(self):
-        # TODO: Initialize LLM client and prompts
-        pass
+        super().__init__(IntentType.ADD_ITEM)
     
     def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
         """
-        Parse ADD_ITEM intent using LLM
+        Parse ADD_ITEM intent using the existing ADD_ITEM agent
         
         Args:
             user_input: Raw user input text
@@ -41,20 +36,41 @@ class AddItemParser(BaseParser):
         Returns:
             ParserResult with structured command data
         """
-        # TODO: Implement LLM-based parsing for ADD_ITEM
-        # This should extract:
-        # - menu_item_id
-        # - quantity
-        # - customizations
-        # - special_instructions
-        # - allergen_considerations
-        
-        # For now, return a placeholder
-        return ParserResult(
-            success=False,
-            command_data=None,
-            error_message="ADD_ITEM parsing not yet implemented"
-        )
+        try:
+            # Create a mock state for the agent
+            state = ConversationWorkflowState(
+                session_id=context.get("session_id", "test"),
+                restaurant_id=str(context.get("restaurant_id", 1)),
+                user_input=user_input,
+                normalized_user_input=user_input,
+                conversation_history=context.get("conversation_history", []),
+                order_state=context.get("order_items", []),
+                current_state=context.get("current_state", "IDLE")
+            )
+            
+            # Create mock context for the agent
+            agent_context = {
+                "container": context.get("container")  # Pass through container if available
+            }
+            
+            # Call the existing ADD_ITEM agent
+            result_state = add_item_agent_node(state, agent_context)
+            
+            # Extract command data from the agent's result
+            if result_state.commands:
+                # The agent creates multiple commands, we need to handle that
+                # For now, return the first command as the primary result
+                command_data = result_state.commands[0]
+                
+                logger.info(f"ADD_ITEM parser result: {command_data}")
+                return ParserResult.success_result(command_data)
+            else:
+                logger.warning("ADD_ITEM agent returned no commands")
+                return ParserResult.error_result("No commands generated from ADD_ITEM agent")
+            
+        except Exception as e:
+            logger.error(f"ADD_ITEM parser failed: {e}")
+            return ParserResult.error_result(f"ADD_ITEM parsing failed: {str(e)}")
     
     async def _extract_customizations(self, user_input: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """

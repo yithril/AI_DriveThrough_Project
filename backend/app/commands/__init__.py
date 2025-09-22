@@ -7,7 +7,6 @@ from .add_item_command import AddItemCommand
 from .remove_item_command import RemoveItemCommand
 from .clear_order_command import ClearOrderCommand
 from .confirm_order_command import ConfirmOrderCommand
-from .repeat_command import RepeatCommand
 from .question_command import QuestionCommand
 from .unknown_command import UnknownCommand
 from .command_invoker import CommandInvoker
@@ -27,7 +26,6 @@ __all__ = [
     "RemoveItemCommand", 
     "ClearOrderCommand",
     "ConfirmOrderCommand",
-    "RepeatCommand",
     "QuestionCommand",
     "SmallTalkCommand",
     "UnknownCommand",

@@ -1,36 +1,33 @@
 """
 Remove Item Parser
 
-Handles REMOVE_ITEM intents that require complex parsing to extract
-structured data from natural language input.
-
-TODO: Implement LLM-based parsing for complex REMOVE_ITEM requests
-- Ambiguous references (e.g., "Remove that burger", "Take off the fries")
-- Complex targeting (e.g., "Remove the one with extra cheese")
-- Multiple items (e.g., "Remove all the burgers")
-- Conditional removal (e.g., "Remove it if it has pickles")
+LLM-based parser for REMOVE_ITEM intents that wraps the existing REMOVE_ITEM agent.
+Extracts structured data from natural language input using OpenAI GPT-4.
 """
 
+import logging
 from typing import Dict, Any
 from .base_parser import BaseParser, ParserResult
 from ...commands.intent_classification_schema import IntentType
+from ...agents.command_agents.remove_item_agent import remove_item_agent_node
+from ...agents.state import ConversationWorkflowState
+
+logger = logging.getLogger(__name__)
 
 
 class RemoveItemParser(BaseParser):
     """
-    Parser for REMOVE_ITEM intents
+    LLM-based parser for REMOVE_ITEM intents
     
-    This parser handles REMOVE_ITEM requests that require complex
-    natural language processing to extract structured data.
+    Wraps the existing REMOVE_ITEM agent to follow the standard parser pattern.
     """
     
     def __init__(self):
-        # TODO: Initialize LLM client and prompts
-        pass
+        super().__init__(IntentType.REMOVE_ITEM)
     
-    def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
+    async def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
         """
-        Parse REMOVE_ITEM intent using LLM
+        Parse REMOVE_ITEM intent using the existing REMOVE_ITEM agent
         
         Args:
             user_input: Raw user input text
@@ -39,18 +36,36 @@ class RemoveItemParser(BaseParser):
         Returns:
             ParserResult with structured command data
         """
-        # TODO: Implement LLM-based parsing for REMOVE_ITEM
-        # This should extract:
-        # - target_item_id (which item to remove)
-        # - target_ref (alternative targeting method)
-        # - removal_reason (for logging/analytics)
-        
-        # For now, return a placeholder
-        return ParserResult(
-            success=False,
-            command_data=None,
-            error_message="REMOVE_ITEM parsing not yet implemented"
-        )
+        try:
+            # Call the REMOVE_ITEM agent with the data it needs
+            agent_response = await remove_item_agent_node(
+                user_input=user_input,
+                current_order_items=context.get("order_items", [])
+            )
+            
+            # Convert agent response to command data
+            if agent_response.items_to_remove:
+                # For now, return the first item as the primary result
+                first_item = agent_response.items_to_remove[0]
+                command_data = {
+                    "intent": "REMOVE_ITEM",
+                    "confidence": agent_response.confidence,
+                    "slots": {
+                        "order_item_id": first_item.order_item_id,
+                        "target_ref": first_item.target_ref,
+                        "removal_reason": first_item.removal_reason
+                    }
+                }
+                
+                logger.info(f"REMOVE_ITEM parser result: {command_data}")
+                return ParserResult.success_result(command_data)
+            else:
+                logger.warning("REMOVE_ITEM agent returned no items to remove")
+                return ParserResult.error_result("No items to remove found")
+            
+        except Exception as e:
+            logger.error(f"REMOVE_ITEM parser failed: {e}")
+            return ParserResult.error_result(f"REMOVE_ITEM parsing failed: {str(e)}")
     
     async def _resolve_target_item(self, user_input: str, context: Dict[str, Any]) -> int:
         """

@@ -15,14 +15,14 @@ from app.agents.nodes import (
     should_continue_after_state_transition,
     command_executor_node,
     should_continue_after_command_executor,
-    follow_up_agent_node,
-    should_continue_after_follow_up_agent,
-    dynamic_voice_response_node,
-    should_continue_after_dynamic_voice_response,
-    canned_response_node,
-    should_continue_after_canned_response
+    response_router_node,
+    should_continue_after_response_router,
+    clarification_agent_node,
+    should_continue_after_clarification_agent,
+    voice_generation_node,
+    should_continue_after_voice_generation,
 )
-from app.agents.nodes.intent_parser_router import (
+from app.agents.nodes.intent_parser_router_node import (
     intent_parser_router_node,
     should_continue_after_intent_parser_router
 )
@@ -50,9 +50,9 @@ class ConversationWorkflow:
         workflow.add_node("state_transition", state_transition_node)
         workflow.add_node("intent_parser_router", intent_parser_router_node)
         workflow.add_node("command_executor", command_executor_node)
-        workflow.add_node("follow_up_agent", follow_up_agent_node)
-        workflow.add_node("dynamic_voice_response", dynamic_voice_response_node)
-        workflow.add_node("canned_response", canned_response_node)
+        workflow.add_node("response_router", response_router_node)
+        workflow.add_node("clarification_agent", clarification_agent_node)
+        workflow.add_node("voice_generation", voice_generation_node)
         
         # Set the entry point
         workflow.set_entry_point("intent_classifier")
@@ -62,8 +62,7 @@ class ConversationWorkflow:
             "intent_classifier",
             should_continue_after_intent_classifier,
             {
-                "state_transition": "state_transition",
-                "canned_response": "canned_response"
+                "state_transition": "state_transition"
             }
         )
         
@@ -71,8 +70,7 @@ class ConversationWorkflow:
             "state_transition",
             should_continue_after_state_transition,
             {
-                "intent_parser_router": "intent_parser_router",
-                "canned_response": "canned_response"
+                "intent_parser_router": "intent_parser_router"
             }
         )
         
@@ -80,8 +78,7 @@ class ConversationWorkflow:
             "intent_parser_router",
             should_continue_after_intent_parser_router,
             {
-                "command_executor": "command_executor",
-                "canned_response": "canned_response"
+                "command_executor": "command_executor"
             }
         )
         
@@ -89,35 +86,37 @@ class ConversationWorkflow:
             "command_executor",
             should_continue_after_command_executor,
             {
-                "follow_up_agent": "follow_up_agent",
-                "dynamic_voice_response": "dynamic_voice_response"
+                "clarification_agent": "clarification_agent",
+                "response_router": "response_router"
             }
         )
         
+        
         workflow.add_conditional_edges(
-            "follow_up_agent",
-            should_continue_after_follow_up_agent,
+            "response_router",
+            should_continue_after_response_router,
             {
-                "dynamic_voice_response": "dynamic_voice_response"
+                "clarification_agent": "clarification_agent",
+                "voice_generation": "voice_generation"
             }
         )
         
         workflow.add_conditional_edges(
-            "dynamic_voice_response",
-            should_continue_after_dynamic_voice_response,
+            "clarification_agent",
+            should_continue_after_clarification_agent,
+            {
+                "voice_generation": "voice_generation"
+            }
+        )
+        
+        workflow.add_conditional_edges(
+            "voice_generation",
+            should_continue_after_voice_generation,
             {
                 "END": END
             }
         )
         
-        # Canned response goes directly to END (it already has audio)
-        workflow.add_conditional_edges(
-            "canned_response",
-            should_continue_after_canned_response,
-            {
-                "END": END
-            }
-        )
         
         return workflow.compile()
     
@@ -145,27 +144,26 @@ class ConversationWorkflow:
         return {
             "nodes": [
                 "intent_classifier",
-                "transition_decision", 
+                "state_transition", 
                 "intent_parser_router",
                 "command_executor",
-                "follow_up_agent",
-                "dynamic_voice_response",
-                "canned_response"
+                "response_router",
+                "clarification_agent",
+                "voice_generation",
             ],
             "edges": [
-                ("intent_classifier", "transition_decision"),
-                ("intent_classifier", "canned_response"),
-                ("transition_decision", "intent_parser_router"),
-                ("transition_decision", "canned_response"),
+                ("intent_classifier", "state_transition"),
+                ("state_transition", "intent_parser_router"),
                 ("intent_parser_router", "command_executor"),
-                ("intent_parser_router", "canned_response"),
-                ("command_executor", "follow_up_agent"),
-                ("command_executor", "dynamic_voice_response"),
-                ("follow_up_agent", "dynamic_voice_response"),
-                ("canned_response", "END")
+                ("command_executor", "clarification_agent"),
+                ("command_executor", "response_router"),
+                ("response_router", "clarification_agent"),
+                ("response_router", "voice_generation"),
+                ("clarification_agent", "voice_generation"),
+                ("voice_generation", "END"),
             ],
             "entry_point": "intent_classifier",
-            "end_points": ["dynamic_voice_response", "END"]
+            "end_points": ["voice_generation", "END"]
         }
 
 

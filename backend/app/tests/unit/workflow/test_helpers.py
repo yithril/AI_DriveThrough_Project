@@ -16,8 +16,8 @@ sys.path.insert(0, str(backend_dir))
 
 from app.agents.state import ConversationWorkflowState
 from app.models.state_machine_models import ConversationState, OrderState, ConversationContext
-from app.commands.command_contract import IntentType
-from app.dto.order_result import OrderResult, CommandBatchResult, FollowUpAction
+from app.commands.intent_classification_schema import IntentType
+from app.dto.order_result import OrderResult, CommandBatchResult
 from app.constants.audio_phrases import AudioPhraseType
 
 
@@ -84,6 +84,7 @@ class ConversationWorkflowStateBuilder:
         self._restaurant_id = str(restaurant_id)
         return self
     
+    
     def with_user_input(self, user_input: str) -> 'ConversationWorkflowStateBuilder':
         """Set the user input"""
         self._user_input = user_input
@@ -100,6 +101,13 @@ class ConversationWorkflowStateBuilder:
         return self
     
     def with_intent(self, intent_type: IntentType, confidence: float = 0.95, slots: Dict[str, Any] = None) -> 'ConversationWorkflowStateBuilder':
+        """Set intent classification data"""
+        self._intent_type = intent_type
+        self._intent_confidence = confidence
+        self._intent_slots = slots or {}
+        return self
+    
+    def with_intent_classification(self, intent_type: IntentType, confidence: float = 0.95, slots: Dict[str, Any] = None) -> 'ConversationWorkflowStateBuilder':
         """Set intent information"""
         self._intent_type = intent_type
         self._intent_confidence = confidence
@@ -126,6 +134,12 @@ class ConversationWorkflowStateBuilder:
     def with_response(self, text: str, audio_url: str = None) -> 'ConversationWorkflowStateBuilder':
         """Set response text and optional audio URL"""
         self._response_text = text
+        if audio_url:
+            self._audio_url = audio_url
+        return self
+    
+    def with_audio_url(self, audio_url: str) -> 'ConversationWorkflowStateBuilder':
+        """Set audio URL"""
         self._audio_url = audio_url
         return self
     
@@ -208,8 +222,11 @@ def create_successful_command_batch_result(commands: List[str] = None) -> Comman
         warnings_count=0,
         errors_by_category={},
         errors_by_code={},
-        follow_up_action=FollowUpAction.CONTINUE,
-        summary_message=f"Successfully executed {len(commands)} command(s)"
+        summary_message=f"Successfully executed {len(commands)} command(s)",
+        command_family="ADD_ITEM",
+        batch_outcome="ALL_SUCCESS",
+        first_error_code=None,
+        response_payload=None
     )
 
 
@@ -231,8 +248,11 @@ def create_failed_command_batch_result(error_message: str = "Command failed") ->
         warnings_count=0,
         errors_by_category={},
         errors_by_code={},
-        follow_up_action=FollowUpAction.ASK,
-        summary_message=error_message
+        summary_message=error_message,
+        command_family="ADD_ITEM",
+        batch_outcome="ALL_FAILED",
+        first_error_code="ITEM_UNAVAILABLE",
+        response_payload=None
     )
 
 

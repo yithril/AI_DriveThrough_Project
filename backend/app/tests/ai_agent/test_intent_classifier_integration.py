@@ -11,7 +11,7 @@ from pathlib import Path
 app_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(app_dir))
 
-from app.agents.nodes.intent_classifier import intent_classifier_node
+from app.agents.nodes.intent_classifier_node import intent_classifier_node
 from app.agents.state.conversation_state import ConversationWorkflowState
 from app.models.state_machine_models import ConversationState, OrderState, ConversationContext
 from app.commands.command_contract import IntentType

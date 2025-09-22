@@ -15,7 +15,6 @@ class IntentType(str, Enum):
     MODIFY_ITEM = "MODIFY_ITEM"
     SET_QUANTITY = "SET_QUANTITY"
     CONFIRM_ORDER = "CONFIRM_ORDER"
-    REPEAT = "REPEAT"
     QUESTION = "QUESTION"
     SMALL_TALK = "SMALL_TALK"
     UNKNOWN = "UNKNOWN"
@@ -68,9 +67,6 @@ class SetQuantitySlots(BaseModel):
     quantity: int = Field(..., ge=1, description="New quantity")
 
 
-class RepeatSlots(BaseModel):
-    """Slots for REPEAT intent"""
-    target_ref: str = Field(default="last_item", description="Target reference to repeat")
     scope: str = Field(default="last_item", description="Scope: last_item or full_order")
 
 
@@ -87,7 +83,6 @@ SLOT_SCHEMAS = {
     IntentType.MODIFY_ITEM: ModifyItemSlots,
     IntentType.SET_QUANTITY: SetQuantitySlots,
     IntentType.CONFIRM_ORDER: dict,  # No slots needed
-    IntentType.REPEAT: RepeatSlots,
     IntentType.QUESTION: QuestionSlots,
     IntentType.SMALL_TALK: QuestionSlots,
     IntentType.UNKNOWN: QuestionSlots,

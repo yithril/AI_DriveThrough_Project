@@ -151,16 +151,16 @@ def should_continue_after_command_executor(state: ConversationWorkflowState) -> 
     if state.command_batch_result:
         # Check if we need follow-up based on the batch outcome
         if state.command_batch_result.batch_outcome == "PARTIAL_SUCCESS_ASK":
-            return "follow_up_agent"  # Need to ask for clarification
+            return "clarification_agent"  # Need to ask for clarification
         elif state.command_batch_result.batch_outcome == "ALL_SUCCESS":
-            return "dynamic_voice_response"  # All successful, simple response
+            return "response_router"  # All successful, route to response router
         elif state.command_batch_result.batch_outcome == "ALL_FAILED":
-            return "follow_up_agent"  # All failed, need clarification
+            return "clarification_agent"  # All failed, need clarification
         elif state.command_batch_result.failed_commands > 0:
-            return "follow_up_agent"  # Some commands failed, may need clarification
+            return "clarification_agent"  # Some commands failed, may need clarification
         else:
-            return "dynamic_voice_response"  # Default to dynamic voice response
+            return "response_router"  # Default to response router
     elif state.has_errors():
-        return "follow_up_agent"  # Validation errors, may need clarification
+        return "clarification_agent"  # Validation errors, may need clarification
     else:
-        return "dynamic_voice_response"  # Default to dynamic voice response
+        return "response_router"  # Default to response router

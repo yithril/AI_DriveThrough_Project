@@ -10,7 +10,6 @@ from .add_item_command import AddItemCommand
 from .remove_item_command import RemoveItemCommand
 from .clear_order_command import ClearOrderCommand
 from .confirm_order_command import ConfirmOrderCommand
-from .repeat_command import RepeatCommand
 from .question_command import QuestionCommand
 from .unknown_command import UnknownCommand
 
@@ -26,7 +25,6 @@ class CommandFactory:
         "REMOVE_ITEM": RemoveItemCommand,
         "CLEAR_ORDER": ClearOrderCommand,
         "CONFIRM_ORDER": ConfirmOrderCommand,
-        "REPEAT": RepeatCommand,
         "QUESTION": QuestionCommand,
         "UNKNOWN": UnknownCommand,
         # These intents are kept but don't create commands (handled elsewhere):
@@ -72,8 +70,6 @@ class CommandFactory:
                 return cls._create_clear_order_command(command_class, restaurant_id, order_id)
             elif intent == "CONFIRM_ORDER":
                 return cls._create_confirm_order_command(command_class, restaurant_id, order_id)
-            elif intent == "REPEAT":
-                return cls._create_repeat_command(command_class, slots, restaurant_id, order_id)
             elif intent == "QUESTION":
                 return cls._create_question_command(command_class, slots, restaurant_id, order_id)
             elif intent == "UNKNOWN":
@@ -125,15 +121,6 @@ class CommandFactory:
             order_id=order_id
         )
     
-    @classmethod
-    def _create_repeat_command(cls, command_class, slots: Dict[str, Any], restaurant_id: int, order_id: int):
-        """Create RepeatCommand from slots"""
-        return command_class(
-            restaurant_id=restaurant_id,
-            order_id=order_id,
-            scope=slots.get("scope", "full_order"),
-            target_ref=slots.get("target_ref", "last_item")
-        )
     
     @classmethod
     def _create_question_command(cls, command_class, slots: Dict[str, Any], restaurant_id: int, order_id: int):

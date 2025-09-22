@@ -5,7 +5,7 @@ Test command executor enrichment functionality
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from app.agents.state import ConversationWorkflowState
-from app.agents.nodes.command_executor import command_executor_node
+from app.agents.nodes.command_executor_node import command_executor_node
 from app.dto.order_result import OrderResult, CommandBatchResult, ResponsePayload
 from app.commands.intent_classification_schema import IntentType
 
@@ -53,13 +53,13 @@ class TestCommandExecutorEnrichment:
             summary_message="Mixed results"
         )
         
-        with patch('app.agents.nodes.command_executor.CommandInvoker') as mock_invoker_class:
+        with patch('app.agents.nodes.command_executor_node.CommandInvoker') as mock_invoker_class:
             mock_invoker = AsyncMock()
             mock_invoker.execute_multiple_commands.return_value = mock_batch_result
             mock_invoker_class.return_value = mock_invoker
             
             # Mock the container and services
-            with patch('app.agents.nodes.command_executor.Container') as mock_container_class:
+            with patch('app.agents.nodes.command_executor_node.Container') as mock_container_class:
                 mock_container = MagicMock()
                 mock_container.order_service.return_value = MagicMock()
                 mock_container.order_session_service.return_value = MagicMock()
@@ -67,12 +67,12 @@ class TestCommandExecutorEnrichment:
                 mock_container_class.return_value = mock_container
                 
                 # Mock database session
-                with patch('app.agents.nodes.command_executor.get_db') as mock_get_db:
+                with patch('app.agents.nodes.command_executor_node.get_db') as mock_get_db:
                     mock_session = MagicMock()
                     mock_get_db.return_value = [mock_session]
                     
                     # Mock UnitOfWork
-                    with patch('app.agents.nodes.command_executor.UnitOfWork') as mock_uow_class:
+                    with patch('app.agents.nodes.command_executor_node.UnitOfWork') as mock_uow_class:
                         mock_uow = MagicMock()
                         mock_uow.__aenter__ = AsyncMock(return_value=mock_uow)
                         mock_uow.__aexit__ = AsyncMock(return_value=None)

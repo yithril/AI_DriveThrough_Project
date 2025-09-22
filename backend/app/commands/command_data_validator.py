@@ -25,8 +25,8 @@ class CommandDataValidator:
     Ensures the data structure is correct before passing to CommandFactory.
     """
     
-    REQUIRED_FIELDS = ["intent", "confidence", "slots", "needs_clarification"]
-    OPTIONAL_FIELDS = ["clarifying_question", "notes", "user_input"]
+    REQUIRED_FIELDS = ["intent", "confidence", "slots"]
+    OPTIONAL_FIELDS = ["notes", "user_input"]
     
     @classmethod
     def validate(cls, data: Dict[str, Any]) -> tuple[bool, List[ValidationError]]:
@@ -97,19 +97,11 @@ class CommandDataValidator:
                     value=type(data["slots"]).__name__
                 ))
         
-        # Validate needs_clarification field
-        if "needs_clarification" in data:
-            if not isinstance(data["needs_clarification"], bool):
-                errors.append(ValidationError(
-                    field="needs_clarification",
-                    message="Needs clarification must be a boolean",
-                    value=type(data["needs_clarification"]).__name__
-                ))
         
         # Validate optional fields if present
         for field in cls.OPTIONAL_FIELDS:
             if field in data:
-                if field in ["clarifying_question", "notes", "user_input"]:
+                if field in ["notes", "user_input"]:
                     if not isinstance(data[field], str):
                         errors.append(ValidationError(
                             field=field,

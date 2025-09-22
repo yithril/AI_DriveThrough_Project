@@ -18,8 +18,6 @@ class ParserResult:
     success: bool
     command_data: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
-    needs_clarification: bool = False
-    clarifying_question: Optional[str] = None
     
     @classmethod
     def success_result(cls, command_data: Dict[str, Any]) -> "ParserResult":
@@ -29,14 +27,6 @@ class ParserResult:
             command_data=command_data
         )
     
-    @classmethod
-    def clarification_needed(cls, question: str) -> "ParserResult":
-        """Create a result indicating clarification is needed."""
-        return cls(
-            success=False,
-            needs_clarification=True,
-            clarifying_question=question
-        )
     
     @classmethod
     def error_result(cls, error_message: str) -> "ParserResult":
@@ -82,8 +72,6 @@ class BaseParser(ABC):
             "intent": intent,
             "confidence": 1.0,  # Rule-based parsers are always confident
             "slots": slots,
-            "needs_clarification": False,
-            "clarifying_question": "",
             "notes": f"Parsed by {self.__class__.__name__}",
             **kwargs
         }

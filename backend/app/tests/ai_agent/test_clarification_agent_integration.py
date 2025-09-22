@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 app_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(app_dir))
 
-from app.agents.nodes.clarification_agent import clarification_agent_node
+from app.agents.nodes.clarification_agent_node import clarification_agent_node
 from app.agents.state.conversation_state import ConversationWorkflowState
 from app.models.state_machine_models import ConversationState, OrderState, ConversationContext
 from app.dto.order_result import CommandBatchResult, OrderResult, OrderResultStatus, ErrorCategory, ErrorCode

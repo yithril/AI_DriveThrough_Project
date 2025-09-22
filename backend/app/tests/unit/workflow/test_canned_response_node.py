@@ -16,7 +16,7 @@ sys.path.insert(0, str(backend_dir))
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from app.agents.state import ConversationWorkflowState
-from app.agents.nodes.canned_response import canned_response_node, should_continue_after_canned_response
+from app.agents.nodes.canned_response_node import canned_response_node, should_continue_after_canned_response
 from app.constants.audio_phrases import AudioPhraseType
 
 
@@ -59,7 +59,7 @@ class TestCannedResponseNode:
     @pytest.mark.asyncio
     async def test_canned_response_successful_phrase_resolution(self, sample_state_with_phrase_type, mock_voice_service):
         """Test successful resolution of canned phrase to audio URL"""
-        with patch('app.agents.nodes.canned_response.Container') as mock_container_class:
+        with patch('app.agents.nodes.canned_response_node.Container') as mock_container_class:
             mock_container = mock_container_class.return_value
             mock_container.voice_service.return_value = mock_voice_service
             
@@ -91,7 +91,7 @@ class TestCannedResponseNode:
             response_phrase_type=None  # No phrase type
         )
         
-        with patch('app.agents.nodes.canned_response.Container') as mock_container_class:
+        with patch('app.agents.nodes.canned_response_node.Container') as mock_container_class:
             mock_container = mock_container_class.return_value
             mock_container.voice_service.return_value = mock_voice_service
             
@@ -108,7 +108,7 @@ class TestCannedResponseNode:
     @pytest.mark.asyncio
     async def test_canned_response_voice_service_failure(self, sample_state_with_phrase_type):
         """Test handling when voice service fails"""
-        with patch('app.agents.nodes.canned_response.Container') as mock_container_class:
+        with patch('app.agents.nodes.canned_response_node.Container') as mock_container_class:
             mock_container = mock_container_class.return_value
             
             # Mock voice service failure
@@ -126,7 +126,7 @@ class TestCannedResponseNode:
     @pytest.mark.asyncio
     async def test_canned_response_low_confidence_clarification(self, sample_state_low_confidence, mock_voice_service):
         """Test handling of low confidence intents with clarification"""
-        with patch('app.agents.nodes.canned_response.Container') as mock_container_class:
+        with patch('app.agents.nodes.canned_response_node.Container') as mock_container_class:
             mock_container = mock_container_class.return_value
             mock_container.voice_service.return_value = mock_voice_service
             
@@ -142,7 +142,7 @@ class TestCannedResponseNode:
     @pytest.mark.asyncio
     async def test_canned_response_container_failure(self, sample_state_with_phrase_type):
         """Test handling when container fails to provide voice service"""
-        with patch('app.agents.nodes.canned_response.Container') as mock_container_class:
+        with patch('app.agents.nodes.canned_response_node.Container') as mock_container_class:
             mock_container = mock_container_class.return_value
             mock_container.voice_service.side_effect = Exception("Container failed")
             
@@ -163,7 +163,7 @@ class TestCannedResponseNode:
             AudioPhraseType.ERROR_MESSAGE
         ]
         
-        with patch('app.agents.nodes.canned_response.Container') as mock_container_class:
+        with patch('app.agents.nodes.canned_response_node.Container') as mock_container_class:
             mock_container = mock_container_class.return_value
             mock_container.voice_service.return_value = mock_voice_service
             
@@ -242,7 +242,7 @@ class TestCannedResponseIntegration:
         )
         
         # Mock the voice service with realistic behavior
-        with patch('app.agents.nodes.canned_response.Container') as mock_container_class:
+        with patch('app.agents.nodes.canned_response_node.Container') as mock_container_class:
             mock_container = mock_container_class.return_value
             
             mock_voice_service = AsyncMock()

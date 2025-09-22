@@ -12,13 +12,12 @@ from app.commands.intent_classification_schema import IntentType
 from ..parser.base_parser import ParserResult
 from ..parser.clear_order_parser import ClearOrderParser
 from ..parser.confirm_order_parser import ConfirmOrderParser
-from ..parser.repeat_parser import RepeatParser
 from ..parser.question_parser import QuestionParser
 from ..parser.unknown_parser import UnknownParser
-# TODO: Import LLM-based parsers when implemented
-# from ..parser.add_item_parser import AddItemParser
+from ..parser.add_item_parser import AddItemParser
+from ..parser.remove_item_parser import RemoveItemParser
+# TODO: Import other LLM-based parsers when implemented
 # from ..parser.modify_item_parser import ModifyItemParser
-# from ..parser.remove_item_parser import RemoveItemParser
 
 
 class IntentParserRouter:
@@ -34,13 +33,12 @@ class IntentParserRouter:
         self.parsers = {
             IntentType.CLEAR_ORDER: ClearOrderParser(),
             IntentType.CONFIRM_ORDER: ConfirmOrderParser(),
-            IntentType.REPEAT: RepeatParser(),
             IntentType.QUESTION: QuestionParser(),
-            IntentType.UNKNOWN: UnknownParser()
-            # TODO: Add LLM-based parsers when implemented
-            # IntentType.ADD_ITEM: AddItemParser(),
-            # IntentType.MODIFY_ITEM: ModifyItemParser(),
-            # IntentType.REMOVE_ITEM: RemoveItemParser()
+            IntentType.UNKNOWN: UnknownParser(),
+            IntentType.ADD_ITEM: AddItemParser(),
+            IntentType.REMOVE_ITEM: RemoveItemParser()
+            # TODO: Add other LLM-based parsers when implemented
+            # IntentType.MODIFY_ITEM: ModifyItemParser()
         }
     
     def parse_intent(self, intent_type: IntentType, user_input: str, context: Dict[str, Any]) -> ParserResult:

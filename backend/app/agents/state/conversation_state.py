@@ -28,7 +28,8 @@ class ConversationWorkflowState:
     # =============================================================================
     session_id: str
     restaurant_id: str
-    user_input: str = ""  # What the person said
+    user_input: str = ""  # What the person said (original, unprocessed)
+    normalized_user_input: str = ""  # Cleaned up version for processing (TODO: implement cleaning logic)
     
     # =============================================================================
     # INTENT CLASSIFIER NODE (populates these)
@@ -59,7 +60,7 @@ class ConversationWorkflowState:
     # =============================================================================
     # RESPONSE ROUTER NODE (uses batch result, populates routing context)
     # =============================================================================
-    next_node: Optional[str] = None  # "canned_response", "follow_up_agent", "dynamic_voice_response"
+    next_node: Optional[str] = None  # "canned_response", "follow_up_agent", "response_router"
     response_context: Dict[str, Any] = field(default_factory=dict)  # Context for next node
     
     # =============================================================================
