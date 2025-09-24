@@ -80,7 +80,7 @@ class OrderService:
                 return await self._create_db_order(db, restaurant_id, customer_name)
             
             # Set current session
-            await self.storage.set_current_session_id(session_id, ttl=900)
+            await self.storage.set_current_session_id(session_id)
             
             # Get greeting audio URL for this session
             greeting_audio_url = self._get_greeting_audio_url(restaurant_id, session_id)

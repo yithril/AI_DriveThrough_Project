@@ -39,12 +39,19 @@ class ServiceFactory:
     def create_order_service(self, db_session: AsyncSession):
         """Create OrderService with database session"""
         from app.services.order_service import OrderService
-        return OrderService(db_session)
+        from app.services.order_session_service import OrderSessionService
+        from app.services.customization_validation_service import CustomizationValidationService
+        
+        # Create the required dependencies
+        order_session_service = self.create_order_session_service()
+        customization_validator = self.create_customization_validator(db_session)
+        
+        return OrderService(order_session_service, customization_validator)
     
     def create_customization_validator(self, db_session: AsyncSession):
         """Create CustomizationValidator with database session"""
-        from app.services.customization_validator import CustomizationValidator
-        return CustomizationValidator(db_session)
+        from app.services.customization_validation_service import CustomizationValidationService
+        return CustomizationValidationService()
     
     # Non-database services (can be created directly from container)
     def create_order_session_service(self):

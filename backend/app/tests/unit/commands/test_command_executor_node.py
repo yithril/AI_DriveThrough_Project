@@ -106,8 +106,17 @@ class TestCommandExecutorNode:
         from app.tests.helpers.mock_services import MockContainer
         mock_container = MockContainer()
         
-        # Test with LangGraph context injection
-        context = {"container": mock_container}
+        # Test with LangGraph context injection - command executor needs service_factory
+        from app.core.service_factory import ServiceFactory
+        service_factory = ServiceFactory(mock_container)
+        mock_db_session = AsyncMock()
+        
+        context = {
+            "configurable": {
+                "service_factory": service_factory,
+                "shared_db_session": mock_db_session
+            }
+        }
         
         # Execute the node - this will test the full functionality
         result_state = await command_executor_node(sample_state_with_commands, context)
@@ -130,8 +139,17 @@ class TestCommandExecutorNode:
         from app.tests.helpers.mock_services import MockContainer
         mock_container = MockContainer()
         
-        # Test with LangGraph context injection
-        context = {"container": mock_container}
+        # Test with LangGraph context injection - command executor needs service_factory
+        from app.core.service_factory import ServiceFactory
+        service_factory = ServiceFactory(mock_container)
+        mock_db_session = AsyncMock()
+        
+        context = {
+            "configurable": {
+                "service_factory": service_factory,
+                "shared_db_session": mock_db_session
+            }
+        }
         
         # The MockContainer already provides all the services the command executor needs
         # No additional mocking required
@@ -151,8 +169,17 @@ class TestCommandExecutorNode:
         from app.tests.helpers.mock_services import MockContainer
         mock_container = MockContainer()
         
-        # Test with LangGraph context injection
-        context = {"container": mock_container}
+        # Test with LangGraph context injection - command executor needs service_factory
+        from app.core.service_factory import ServiceFactory
+        service_factory = ServiceFactory(mock_container)
+        mock_db_session = AsyncMock()
+        
+        context = {
+            "configurable": {
+                "service_factory": service_factory,
+                "shared_db_session": mock_db_session
+            }
+        }
         
         # The MockContainer already provides all the services the command executor needs
         # No additional mocking required
@@ -172,8 +199,17 @@ class TestCommandExecutorNode:
         from app.tests.helpers.mock_services import MockContainer
         mock_container = MockContainer()
         
-        # Test with LangGraph context injection
-        context = {"container": mock_container}
+        # Test with LangGraph context injection - command executor needs service_factory
+        from app.core.service_factory import ServiceFactory
+        service_factory = ServiceFactory(mock_container)
+        mock_db_session = AsyncMock()
+        
+        context = {
+            "configurable": {
+                "service_factory": service_factory,
+                "shared_db_session": mock_db_session
+            }
+        }
         
         # The MockContainer already provides all the services the command executor needs
         # No additional mocking required
@@ -211,8 +247,17 @@ class TestCommandExecutorNode:
         from app.tests.helpers.mock_services import MockContainer
         mock_container = MockContainer()
         
-        # Test with LangGraph context injection
-        context = {"container": mock_container}
+        # Test with LangGraph context injection - command executor needs service_factory
+        from app.core.service_factory import ServiceFactory
+        service_factory = ServiceFactory(mock_container)
+        mock_db_session = AsyncMock()
+        
+        context = {
+            "configurable": {
+                "service_factory": service_factory,
+                "shared_db_session": mock_db_session
+            }
+        }
         
         # Execute the node
         result_state = await command_executor_node(empty_state, context)
@@ -417,10 +462,7 @@ class TestCommandExecutorIntegration:
                     "slots": {
                         "menu_item_id": 1,
                         "quantity": 1
-                    },
-                    "needs_clarification": False,
-                    "clarifying_question": "",
-                    "notes": "Parsed by AddItemParser"
+                    }
                 }
             ],
             order_state=order_state
@@ -430,8 +472,17 @@ class TestCommandExecutorIntegration:
         from app.tests.helpers.mock_services import MockContainer
         mock_container = MockContainer()
         
-        # Test with LangGraph context injection
-        context = {"container": mock_container}
+        # Test with LangGraph context injection - command executor needs service_factory
+        from app.core.service_factory import ServiceFactory
+        service_factory = ServiceFactory(mock_container)
+        mock_db_session = AsyncMock()
+        
+        context = {
+            "configurable": {
+                "service_factory": service_factory,
+                "shared_db_session": mock_db_session
+            }
+        }
         
         # The MockContainer already provides all the services the command executor needs
         # No additional mocking required

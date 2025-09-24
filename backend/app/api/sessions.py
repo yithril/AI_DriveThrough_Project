@@ -30,42 +30,54 @@ async def new_car(
     """
     Handle new car arriving (NEW_CAR event)
     
+    Creates both a session and an order, just like OrderService.handle_new_car
+    
     Args:
         request_data: New car request data
         
     Returns:
-        dict: New session data
+        dict: New session and order data
     """
     try:
         logger.info(f"Received new car request: {request_data}")
         
-        # Generate session ID
-        import uuid
-        session_id = str(uuid.uuid4())
+        # Use OrderService.handle_new_car to create both session and order
+        from ..services.order_service import OrderService
+        from ..services.customization_validation_service import CustomizationValidationService
+        from ..core.service_factory import ServiceFactory
+        from ..core.container import Container
         
-        # Create new conversation session using OrderSessionService
-        session_created = await order_session_service.create_new_conversation_session(
-            session_id=session_id,
+        # Create service factory and order service using the real container
+        container = Container()
+        service_factory = ServiceFactory(container)
+        order_service = service_factory.create_order_service(db)
+        
+        # Create both session and order using OrderService.handle_new_car
+        order_result = await order_service.handle_new_car(
+            db=db,
             restaurant_id=request_data.restaurant_id,
             customer_name=None
         )
         
-        if not session_created:
+        if not order_result.is_success:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create new session"
+                detail=f"Failed to create session and order: {order_result.message}"
             )
         
-        # Set as current session
-        await order_session_service.set_current_session_id(session_id)
+        # Extract session data from the result
+        session_data = order_result.data.get("session", {})
+        session_id = session_data.get("id")
+        greeting_audio_url = order_result.data.get("greeting_audio_url")
         
         return {
             "success": True,
-            "message": "New car session created",
+            "message": "New car session and order created",
             "data": {
                 "session_id": session_id,
                 "restaurant_id": request_data.restaurant_id,
-                "greeting_audio_url": None  # TODO: Add greeting audio generation
+                "greeting_audio_url": greeting_audio_url,
+                "session": session_data
             }
         }
         

@@ -12,6 +12,7 @@ from .clear_order_command import ClearOrderCommand
 from .confirm_order_command import ConfirmOrderCommand
 from .question_command import QuestionCommand
 from .unknown_command import UnknownCommand
+from .clarification_needed_command import ClarificationNeededCommand
 
 
 class CommandFactory:
@@ -27,6 +28,7 @@ class CommandFactory:
         "CONFIRM_ORDER": ConfirmOrderCommand,
         "QUESTION": QuestionCommand,
         "UNKNOWN": UnknownCommand,
+        "CLARIFICATION_NEEDED": ClarificationNeededCommand,
         # These intents are kept but don't create commands (handled elsewhere):
         # "MODIFY_ITEM": Handled as RemoveItemCommand + AddItemCommand
         # "SET_QUANTITY": Handled as RemoveItemCommand + AddItemCommand  
@@ -74,6 +76,8 @@ class CommandFactory:
                 return cls._create_question_command(command_class, slots, restaurant_id, order_id)
             elif intent == "UNKNOWN":
                 return cls._create_unknown_command(command_class, slots, restaurant_id, order_id)
+            elif intent == "CLARIFICATION_NEEDED":
+                return cls._create_clarification_needed_command(command_class, slots, restaurant_id, order_id)
             else:
                 return None
                 
@@ -141,6 +145,18 @@ class CommandFactory:
             order_id=order_id,
             user_input=slots.get("user_input", ""),
             clarifying_question=slots.get("clarifying_question", "I'm sorry, I didn't understand. Could you please repeat that?")
+        )
+    
+    @classmethod
+    def _create_clarification_needed_command(cls, command_class, slots: Dict[str, Any], restaurant_id: int, order_id: int):
+        """Create ClarificationNeededCommand from slots"""
+        return command_class(
+            restaurant_id=restaurant_id,
+            order_id=order_id,
+            ambiguous_item=slots.get("ambiguous_item", ""),
+            suggested_options=slots.get("suggested_options", []),
+            user_input=slots.get("user_input", ""),
+            clarification_question=slots.get("clarification_question")
         )
     
     

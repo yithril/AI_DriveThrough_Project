@@ -16,8 +16,7 @@ from ..parser.question_parser import QuestionParser
 from ..parser.unknown_parser import UnknownParser
 from ..parser.add_item_parser import AddItemParser
 from ..parser.remove_item_parser import RemoveItemParser
-# TODO: Import other LLM-based parsers when implemented
-# from ..parser.modify_item_parser import ModifyItemParser
+from ..parser.modify_item_parser import ModifyItemParser
 
 
 class IntentParserRouter:
@@ -36,9 +35,8 @@ class IntentParserRouter:
             IntentType.QUESTION: QuestionParser(),
             IntentType.UNKNOWN: UnknownParser(),
             IntentType.ADD_ITEM: AddItemParser(),
-            IntentType.REMOVE_ITEM: RemoveItemParser()
-            # TODO: Add other LLM-based parsers when implemented
-            # IntentType.MODIFY_ITEM: ModifyItemParser()
+            IntentType.REMOVE_ITEM: RemoveItemParser(),
+            IntentType.MODIFY_ITEM: ModifyItemParser()
         }
     
     async def parse_intent(self, intent_type: IntentType, user_input: str, context: Dict[str, Any]) -> ParserResult:
@@ -112,10 +110,13 @@ async def intent_parser_router_node(state: ConversationWorkflowState, config = N
         # Store command data for command executor
         state.commands = [result.command_data]
         state.response_text = ""  # Will be set by command executor
+        print(f"\n🔍 INTENT PARSER ROUTER - Commands created:")
+        print(f"   Commands: {state.commands}")
     else:
         # Parser failed - route to canned response
         state.commands = []
         state.response_text = "I'm sorry, I didn't understand. Could you please try again?"
+        print(f"\n❌ INTENT PARSER ROUTER - Parser failed: {result.error_message}")
     
     return state
 

@@ -15,6 +15,11 @@ class ItemToRemove(BaseModel):
     target_ref: Optional[str] = Field(default=None, description="Target reference (e.g., 'last_item', 'line_1', 'that burger')")
     removal_reason: Optional[str] = Field(default=None, description="Reason for removal (for logging/analytics)")
     
+    # Ambiguity fields (used when both order_item_id and target_ref are None)
+    ambiguous_item: Optional[str] = Field(default=None, description="The ambiguous item name (e.g., 'burger')")
+    suggested_options: List[str] = Field(default_factory=list, description="List of suggested order items for clarification")
+    clarification_question: Optional[str] = Field(default=None, description="Custom clarification question")
+    
     @field_validator('target_ref')
     @classmethod
     def validate_target_ref(cls, v):

@@ -5,13 +5,14 @@ Executes commands and validates results.
 Runs all commands in batch and aggregates results.
 """
 
+import logging
 from typing import Dict, Any
 from app.agents.state import ConversationWorkflowState
 from app.commands.command_invoker import CommandInvoker
 from app.commands.command_factory import CommandFactory
 from app.commands.command_context import CommandContext
-# Removed FollowUpAction import - no longer needed
-# Removed circular import - Container will be injected via workflow
+
+logger = logging.getLogger(__name__)
 
 
 async def command_executor_node(state: ConversationWorkflowState, config = None) -> ConversationWorkflowState:
@@ -27,7 +28,6 @@ async def command_executor_node(state: ConversationWorkflowState, config = None)
     """
     # Get service factory from config
     service_factory = config.get("configurable", {}).get("service_factory") if config else None
-    
     if not service_factory:
         logger.error("Service factory not available")
         state.response_text = "I'm sorry, I'm having trouble processing your request. Please try again."
@@ -39,11 +39,11 @@ async def command_executor_node(state: ConversationWorkflowState, config = None)
     
     try:
         # Create command context with basic info
+        # In this system, the session ID is the order ID
         command_context = CommandContext(
             session_id=state.session_id,
             restaurant_id=state.restaurant_id,
-            #What is this order id?
-            order_id=state.order_state.order_id if hasattr(state.order_state, 'order_id') else None
+            order_id=state.session_id  # Session ID is the order ID
         )
         
         # Get shared database session from context
@@ -62,6 +62,7 @@ async def command_executor_node(state: ConversationWorkflowState, config = None)
         command_context.set_order_service(order_service)
         command_context.set_order_session_service(order_session_service)
         command_context.set_customization_validator(customization_validator)
+        command_context.set_db_session(shared_db_session)
         
         # Create UnitOfWork for this command batch execution
         # All commands in the batch will share the same transaction
@@ -75,9 +76,41 @@ async def command_executor_node(state: ConversationWorkflowState, config = None)
         validation_errors = []
         
         if not state.commands:
-            # No commands to execute
-            state.command_batch_result = None
-            state.response_text = "No commands to execute"
+            # No commands to execute - create a failed batch result
+            from app.agents.utils.batch_analysis import analyze_batch_outcome, get_first_error_code
+            from app.agents.utils.response_builder import build_summary_events, build_response_payload
+            from app.dto.order_result import OrderResult, OrderResultStatus
+            from app.agents.utils.command_batch_result import CommandBatchResult
+            
+            # Create a failed result indicating parsing failed
+            failed_result = OrderResult.error("No commands generated - parsing may have failed")
+            results = [failed_result]
+            
+            batch_outcome = analyze_batch_outcome(results)
+            first_error_code = get_first_error_code(results)
+            summary_events = build_summary_events(results)
+            response_payload = build_response_payload(
+                batch_outcome=batch_outcome,
+                summary_events=summary_events,
+                first_error_code=first_error_code,
+                intent_type="UNKNOWN"
+            )
+            
+            state.command_batch_result = CommandBatchResult(
+                results=results,
+                total_commands=0,
+                successful_commands=0,
+                failed_commands=1,
+                warnings_count=0,
+                errors_by_category={},
+                errors_by_code={},
+                summary_message="No commands generated",
+                command_family="UNKNOWN",
+                batch_outcome=batch_outcome,
+                first_error_code=first_error_code,
+                response_payload=response_payload
+            )
+            state.response_text = "I'm sorry, I didn't understand. Could you please try again?"
             return state
         
         # Import validator
@@ -113,14 +146,13 @@ async def command_executor_node(state: ConversationWorkflowState, config = None)
             command_invoker = CommandInvoker()
             
             # Execute commands within Unit of Work transaction
-            async with uow:
-                batch_result = await command_invoker.execute_multiple_commands(valid_commands, command_context)
-                
-                # CommandInvoker already creates the batch result with router-friendly fields
-                # No additional enrichment needed
-                
-                state.command_batch_result = batch_result
-                # Note: order_state_changed is now set by response_router_node
+            try:
+                async with uow:
+                    batch_result = await command_invoker.execute_multiple_commands(valid_commands, command_context)
+                    state.command_batch_result = batch_result
+            except Exception as uow_error:
+                logger.error(f"UoW transaction failed: {uow_error}")
+                raise
             
             # Generate response text based on results
             if batch_result.has_successes and not batch_result.has_failures:
@@ -145,6 +177,7 @@ async def command_executor_node(state: ConversationWorkflowState, config = None)
         state.command_batch_result = None
         # Note: order_state_changed is now set by response_router_node
         state.response_text = "I'm sorry, there was an error processing your order."
+    
     
     return state
 

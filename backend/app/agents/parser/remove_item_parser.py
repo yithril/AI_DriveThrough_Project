@@ -47,15 +47,31 @@ class RemoveItemParser(BaseParser):
             if agent_response.items_to_remove:
                 # For now, return the first item as the primary result
                 first_item = agent_response.items_to_remove[0]
-                command_data = {
-                    "intent": "REMOVE_ITEM",
-                    "confidence": agent_response.confidence,
-                    "slots": {
-                        "order_item_id": first_item.order_item_id,
-                        "target_ref": first_item.target_ref,
-                        "removal_reason": first_item.removal_reason
+                
+                # Check if this item is ambiguous (both order_item_id and target_ref are None)
+                if first_item.order_item_id is None and first_item.target_ref is None:
+                    # Create clarification command for ambiguous item
+                    command_data = {
+                        "intent": "CLARIFICATION_NEEDED",
+                        "confidence": agent_response.confidence,
+                        "slots": {
+                            "ambiguous_item": first_item.ambiguous_item or "item",
+                            "suggested_options": first_item.suggested_options or [],
+                            "user_input": user_input,
+                            "clarification_question": first_item.clarification_question
+                        }
                     }
-                }
+                else:
+                    # Create normal REMOVE_ITEM command
+                    command_data = {
+                        "intent": "REMOVE_ITEM",
+                        "confidence": agent_response.confidence,
+                        "slots": {
+                            "order_item_id": first_item.order_item_id,
+                            "target_ref": first_item.target_ref,
+                            "removal_reason": first_item.removal_reason
+                        }
+                    }
                 
                 logger.info(f"REMOVE_ITEM parser result: {command_data}")
                 return ParserResult.success_result(command_data)

@@ -119,6 +119,10 @@ class ClarificationContext(BaseModel):
     current_order_summary: str = Field(default="", description="Current order summary")
     restaurant_name: str = Field(default="", description="Restaurant name")
     
+    # NEW: Clarification command data
+    clarification_commands: list[dict] = Field(default_factory=list, description="Clarification commands from batch result")
+    has_clarification_needed: bool = Field(default=False, description="Whether clarification is needed")
+    
     def get_failed_item_suggestions(self, failed_item: str) -> list[str]:
         """Get suggested alternatives for a failed item"""
         suggestions = []
@@ -153,3 +157,26 @@ class ClarificationContext(BaseModel):
                 return True
         
         return False
+    
+    def get_clarification_questions(self) -> list[str]:
+        """Get all clarification questions from clarification commands"""
+        questions = []
+        for cmd in self.clarification_commands:
+            if cmd.get("clarification_question"):
+                questions.append(cmd["clarification_question"])
+        return questions
+    
+    def get_suggested_options(self) -> list[str]:
+        """Get all suggested options from clarification commands"""
+        options = []
+        for cmd in self.clarification_commands:
+            options.extend(cmd.get("suggested_options", []))
+        return options
+    
+    def get_ambiguous_items(self) -> list[str]:
+        """Get all ambiguous items from clarification commands"""
+        items = []
+        for cmd in self.clarification_commands:
+            if cmd.get("ambiguous_item"):
+                items.append(cmd["ambiguous_item"])
+        return items

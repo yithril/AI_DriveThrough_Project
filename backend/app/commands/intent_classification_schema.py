@@ -18,6 +18,7 @@ class IntentType(str, Enum):
     QUESTION = "QUESTION"
     SMALL_TALK = "SMALL_TALK"
     UNKNOWN = "UNKNOWN"
+    CLARIFICATION_NEEDED = "CLARIFICATION_NEEDED"
 
 
 class ChangeOperation(BaseModel):

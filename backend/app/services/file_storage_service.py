@@ -118,8 +118,14 @@ class LocalFileStorageService(FileStorageInterface):
             if not extension:
                 extension = Path(file_name).suffix or ".bin"
             
-            # Create file path
-            file_path = self.files_path / f"{file_id}{extension}"
+            # Create file path - use organized path if file_name contains "/"
+            if "/" in file_name and not file_name.startswith("files/"):
+                # file_name is already an organized path (e.g., "canned-phrases/restaurant-1/item_added_success.mp3")
+                # Use it directly as the file path
+                file_path = self.base_path / file_name
+            else:
+                # Use UUID for regular files
+                file_path = self.files_path / f"{file_id}{extension}"
             
             # Write file
             with open(file_path, 'wb') as f:

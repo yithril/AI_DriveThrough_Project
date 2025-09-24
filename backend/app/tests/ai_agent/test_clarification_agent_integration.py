@@ -612,6 +612,136 @@ class TestClarificationAgentIntegration:
 
         print(f"\n✅ Option required missing clarification agent test passed!")
 
+    @pytest.mark.asyncio
+    async def test_clarification_agent_with_clarification_commands(self):
+        """
+        Test clarification agent with clarification commands (new functionality)
+        """
+        print("\n🧪 TESTING CLARIFICATION AGENT - WITH CLARIFICATION COMMANDS")
+        print("=" * 70)
+        
+        # Create batch result with clarification command
+        clarification_result = OrderResult.success(
+            message="Clarification needed",
+            data={
+                "clarification_type": "ambiguous_item",
+                "ambiguous_item": "burger",
+                "suggested_options": ["Quantum Burger", "Classic Burger", "Chicken Burger"],
+                "user_input": "I want a burger with foie gras",
+                "clarification_question": "Which burger would you like? We have Quantum Burger, Classic Burger, and Chicken Burger.",
+                "needs_user_response": True
+            }
+        )
+        
+        # Create batch result with mixed scenario
+        batch_result = CommandBatchResult(
+            results=[clarification_result],
+            total_commands=1,
+            successful_commands=1,
+            failed_commands=0,
+            warnings_count=0,
+            errors_by_category={},
+            errors_by_code={},
+            summary_message="Clarification needed",
+            command_family="CLARIFICATION_NEEDED",
+            batch_outcome="ALL_SUCCESS",  # Clarification commands return success
+            first_error_code=None,
+            response_payload={}
+        )
+        
+        # Create test state
+        state = ConversationWorkflowState(
+            session_id="test-session-clarification",
+            restaurant_id="1",
+            user_input="I want a burger with foie gras",
+            current_state=ConversationState.ORDERING,
+            order_state=OrderState(
+                line_items=[],
+                last_mentioned_item_ref=None,
+                totals={}
+            ),
+            conversation_context=ConversationContext(
+                turn_counter=1,
+                last_action_uuid=None,
+                thinking_since=None,
+                timeout_at=None,
+                expectation="free_form_ordering"
+            ),
+            conversation_history=[],
+            command_batch_result=batch_result
+        )
+        
+        # Create mock container (following existing test pattern)
+        container = MockContainer()
+        mock_voice_service = AsyncMock()
+        mock_voice_service.generate_audio.return_value = "https://mock-audio-url.com/clarification-test.mp3"
+        container.voice_service = lambda: mock_voice_service
+        
+        # Mock database session with proper async behavior
+        mock_db_session = AsyncMock()
+        async def mock_db_generator():
+            yield mock_db_session
+        container.get_db = mock_db_generator
+        
+        # Mock MenuService to return test data
+        mock_menu_service = AsyncMock()
+        mock_menu_service.get_available_items_for_restaurant.return_value = [
+            {"id": 1, "name": "Quantum Burger", "price": 9.99},
+            {"id": 2, "name": "Classic Burger", "price": 8.99},
+            {"id": 3, "name": "Chicken Burger", "price": 7.99}
+        ]
+        mock_menu_service.get_restaurant_name.return_value = "Test Restaurant"
+        container.menu_service = lambda: mock_menu_service
+        
+        # Create service factory for the clarification agent
+        from app.core.service_factory import ServiceFactory
+        service_factory = ServiceFactory(container)
+        
+        # Mock database session
+        mock_db_session = AsyncMock()
+        
+        context = {
+            "configurable": {
+                "service_factory": service_factory,
+                "shared_db_session": mock_db_session
+            }
+        }
+        
+        print(f"📝 User Input: '{state.user_input}'")
+        print(f"🔍 Batch Result: {batch_result.batch_outcome}")
+        print(f"📋 Clarification Commands: {len(batch_result.results)}")
+        print(f"🎯 Expected: Should handle clarification commands and generate appropriate response")
+        
+        # Call the clarification agent
+        result_state = await clarification_agent_node(state, context)
+        
+        # Debug output
+        print(f"\n🔍 DEBUG - CLARIFICATION AGENT OUTPUT:")
+        print(f"   Response Text: '{result_state.response_text}'")
+        print(f"   Phrase Type: {result_state.response_phrase_type}")
+        print(f"   Audio URL: {result_state.audio_url}")
+        
+        # Assertions
+        assert result_state.response_text is not None
+        assert len(result_state.response_text) > 10
+        assert result_state.response_phrase_type in [
+            AudioPhraseType.CLARIFICATION_QUESTION, 
+            AudioPhraseType.CUSTOM_RESPONSE, 
+            AudioPhraseType.LLM_GENERATED
+        ]
+        
+        # Check that the response mentions clarification
+        response_lower = result_state.response_text.lower()
+        clarification_indicators = [
+            "which", "burger", "quantum", "classic", "chicken", 
+            "would you like", "did you mean", "clarify"
+        ]
+        
+        has_clarification_content = any(indicator in response_lower for indicator in clarification_indicators)
+        assert has_clarification_content, f"Response should contain clarification content: {result_state.response_text}"
+        
+        print("\n✅ Test passed: Clarification agent handled clarification commands correctly")
+
 
 if __name__ == "__main__":
     # Run a quick test

@@ -372,7 +372,9 @@ class VoiceService:
             cached_result = await self.file_storage_service.get_file(cache_path)
             
             if cached_result.success and cached_result.data:
-                cached_url = cached_result.data.get('url') or cached_result.data.get('s3_url')
+                cached_url = (cached_result.data.get('url') or 
+                            cached_result.data.get('s3_url') or 
+                            cached_result.data.get('file_path'))
                 if cached_url:
                     logger.info(f"Found cached canned phrase: {cached_url}")
                     return cached_url
@@ -406,7 +408,10 @@ class VoiceService:
             )
             
             if store_result.success and store_result.data:
-                audio_url = store_result.data.get('url') or store_result.data.get('s3_url')
+                # For local file storage, use file_path; for S3, use url or s3_url
+                audio_url = (store_result.data.get('url') or 
+                           store_result.data.get('s3_url') or 
+                           store_result.data.get('file_path'))
                 logger.info(f"Successfully generated and cached canned phrase: {audio_url}")
                 return audio_url
             else:

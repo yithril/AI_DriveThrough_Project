@@ -42,6 +42,10 @@ COMMAND RESULTS:
 - Failed Items: {failed_items}
 - Success Items: {success_items}
 
+CLARIFICATION NEEDED:
+- Has Clarification: {has_clarification_needed}
+- Clarification Commands: {clarification_commands}
+
 MENU CONTEXT:
 - Available Items by Category: {menu_items_by_category}
 - Similar Suggestions: {similar_suggestions}
@@ -105,6 +109,7 @@ Return ONLY the JSON response. Do not include any other text."""
         input_variables=[
             "restaurant_name", "current_order_summary", "conversation_history",
             "batch_outcome", "error_codes", "failed_items", "success_items",
+            "has_clarification_needed", "clarification_commands",
             "menu_items_by_category", "similar_suggestions"
         ]
     )
@@ -118,6 +123,8 @@ Return ONLY the JSON response. Do not include any other text."""
         error_codes=', '.join(context.error_codes) if context.error_codes else 'None',
         failed_items=', '.join(context.failed_items) if context.failed_items else 'None',
         success_items=', '.join(context.successful_items) if context.successful_items else 'None',
+        has_clarification_needed=context.has_clarification_needed,
+        clarification_commands=_format_clarification_commands(context.clarification_commands),
         menu_items_by_category=_organize_menu_by_category(context.available_items),
         similar_suggestions=_build_similar_suggestions(context, context.failed_items)
     )
@@ -153,6 +160,28 @@ def _build_similar_suggestions(context: ClarificationContext, failed_items: List
             suggestions.append(f"{item} → {', '.join(item_suggestions)}")
     
     return "; ".join(suggestions) if suggestions else "No similar items found"
+
+
+def _format_clarification_commands(commands: List[Dict[str, Any]]) -> str:
+    """Format clarification commands for the prompt"""
+    if not commands:
+        return "None"
+    
+    formatted_commands = []
+    for cmd in commands:
+        ambiguous_item = cmd.get('ambiguous_item', 'item')
+        suggested_options = cmd.get('suggested_options', [])
+        clarification_question = cmd.get('clarification_question', '')
+        
+        if suggested_options:
+            options_text = ', '.join(suggested_options)
+            formatted_commands.append(f"{ambiguous_item}: {options_text}")
+        elif clarification_question:
+            formatted_commands.append(f"{ambiguous_item}: {clarification_question}")
+        else:
+            formatted_commands.append(f"{ambiguous_item}: needs clarification")
+    
+    return "; ".join(formatted_commands)
 
 
 def _format_conversation_history(history: List[Dict[str, Any]]) -> str:

@@ -17,6 +17,11 @@ class ItemToAdd(BaseModel):
     modifiers: List[str] = Field(default_factory=list, description="List of modifiers (e.g., 'extra cheese', 'no pickles')")
     special_instructions: Optional[str] = Field(default=None, description="Special cooking instructions")
     
+    # Ambiguity fields (used when menu_item_id = 0)
+    ambiguous_item: Optional[str] = Field(default=None, description="The ambiguous item name (e.g., 'burger')")
+    suggested_options: List[str] = Field(default_factory=list, description="List of suggested menu items for clarification")
+    clarification_question: Optional[str] = Field(default=None, description="Custom clarification question")
+    
     @field_validator('modifiers')
     @classmethod
     def validate_modifiers(cls, v):
@@ -41,7 +46,7 @@ class AddItemResponse(BaseModel):
     response_text: str = Field(description="Text response to the customer")
     confidence: float = Field(description="Confidence in the parsing (0.0 to 1.0)", ge=0.0, le=1.0)
     items_to_add: List[ItemToAdd] = Field(description="List of items to add to the order")
-    relevant_data: Dict[str, Any] = Field(default_factory=dict, description="Additional relevant data")
+    # relevant_data: Dict[str, Any] = Field(default_factory=dict, description="Additional relevant data")  # Removed for OpenAI compatibility
     
     @field_validator('items_to_add')
     @classmethod

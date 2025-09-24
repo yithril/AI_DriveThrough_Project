@@ -141,8 +141,12 @@ class ConversationWorkflow:
         """
         # Create service factory and shared database session for nodes
         if context and "container" in context:
+            print(f"\n🔧 WORKFLOW - Setting up context:")
+            print(f"   Container: {context['container']}")
+            
             container = context["container"]
             service_factory = create_service_factory(container)
+            print(f"   Service factory created: {service_factory}")
             
             # Create a shared database session for this workflow execution
             async def get_shared_db_session():
@@ -150,9 +154,11 @@ class ConversationWorkflow:
                     return session
             
             shared_db_session = await get_shared_db_session()
+            print(f"   Shared DB session: {shared_db_session}")
             
             context["service_factory"] = service_factory
             context["shared_db_session"] = shared_db_session
+            print(f"   Context updated with service factory and shared DB session")
         
         # Run the workflow with context
         if context:

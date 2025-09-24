@@ -78,8 +78,18 @@ AMBIGUITY DETECTION RULES:
 - If customer says "drink" and there are multiple drink types → use menu_item_id=0
 - If customer says "fries" and there are multiple fry types → use menu_item_id=0
 - If customer says "salad" and there are multiple salad types → use menu_item_id=0
-- ONLY use specific menu_item_id when the customer mentions the exact item name
+- **SMART MATCHING**: If there's only ONE item that matches the customer's request (even if not exact), use that item's ID
+- **EXAMPLES**: "quantum burger" → "Quantum Cheeseburger" (if only one quantum item), "nebula wrap" → "Veggie Nebula Wrap" (if only one nebula item)
 - Always use response_type="success" and phrase_type="LLM_GENERATED" for parsing
+
+AMBIGUITY HANDLING:
+- When you detect ambiguity (menu_item_id=0), you MUST populate the suggested_options field
+- Look at the Available Menu Items above to find specific options that match the customer's request
+- For "burger" → look for all burger items in the menu and list them in suggested_options
+- For "drink" → look for all drink items in the menu and list them in suggested_options
+- For "fries" → look for all fry items in the menu and list them in suggested_options
+- Populate the suggested_options field with the specific menu item names from the menu data
+- Include a helpful clarification_question that lists the specific options
 
 TASK:
 Parse this customer request: "{user_input}"
@@ -128,7 +138,16 @@ Response: {{
   "phrase_type": "LLM_GENERATED",
   "response_text": "I've noted two large burgers for your order.",
   "confidence": 0.8,
-  "items_to_add": [{{"menu_item_id": 0, "quantity": 2, "size": "large", "modifiers": [], "special_instructions": null}}],
+  "items_to_add": [{{
+    "menu_item_id": 0, 
+    "quantity": 2, 
+    "size": "large", 
+    "modifiers": [], 
+    "special_instructions": null,
+    "ambiguous_item": "burger",
+    "suggested_options": ["Quantum Burger", "Classic Burger", "Chicken Burger"],
+    "clarification_question": "Which burger did you want? We have Quantum Burger, Classic Burger, or Chicken Burger."
+  }}],
   "relevant_data": {{"suggested_items": ["Quantum Burger", "Classic Burger", "Chicken Burger"]}}
 }}
 

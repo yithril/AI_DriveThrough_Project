@@ -12,21 +12,26 @@ from langchain_core.tools import tool
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage
+from app.core.unit_of_work import UnitOfWork
 
 from app.agents.state import ConversationWorkflowState
-from app.agents.agent_response.add_item_response import AddItemResponse, AddItemContext
+from app.agents.agent_response.add_item_response import AddItemResponse, AddItemContext, ItemToAdd
 from app.constants.audio_phrases import AudioPhraseType
 from app.core.config import settings
+
+from langchain.agents import create_openai_functions_agent, AgentExecutor
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 logger = logging.getLogger(__name__)
 
 
-def create_add_item_tools(service_bundle) -> List:
+def create_add_item_tools(service_bundle, context) -> List:
     """
     Create tools for ADD_ITEM agent
     
     Args:
         service_bundle: Service bundle containing required services
+        context: Context containing shared_db_session
         
     Returns:
         List of tools for the agent
@@ -36,25 +41,39 @@ def create_add_item_tools(service_bundle) -> List:
     menu_service = service_bundle.get("menu_service")
     restaurant_service = service_bundle.get("restaurant_service")
     
+    # Get shared database session from context
+    shared_db_session = context.get("shared_db_session")
+    
     @tool
     async def search_menu_items(query: str) -> str:
-        """Search for menu items by name or description. Use this when customers mention items that might not match exactly."""
+        """Search for menu items by name or description. Returns item names and IDs for agent to use."""
         try:
-            # Get all available items
-            items = await menu_service.get_available_items_for_restaurant(1)  # TODO: Get from context
-            matching_items = []
+            print(f"🔍 TOOL CALLED: search_menu_items with query='{query}'")
+            # Use the mocked menu service instead of UnitOfWork
+            available_items = await service_bundle["menu_service"].get_available_items_for_restaurant(1)
+            print(f"🔍 TOOL: Got {len(available_items)} available items")
             
+            matching_items = []
             query_lower = query.lower()
-            for item in items:
-                if query_lower in item.lower():
-                    matching_items.append(item)
+            
+            for item in available_items:
+                if query_lower in item["name"].lower():
+                    matching_items.append(f"{item['name']} (ID: {item['id']})")
             
             if matching_items:
-                return f"Found matching items: {', '.join(matching_items)}"
+                result = f"Found matching items: {', '.join(matching_items)}"
+                print(f"🔍 TOOL RESULT: {result}")
+                return result
             else:
-                return f"No items found matching '{query}'. Available items: {', '.join(items[:10])}"
+                # Show available items for reference
+                available_names = [f"{item['name']} (ID: {item['id']})" for item in available_items[:10]]
+                result = f"No items found matching '{query}'. Available items: {', '.join(available_names)}"
+                print(f"🔍 TOOL RESULT: {result}")
+                return result
         except Exception as e:
-            return f"Error searching menu items: {str(e)}"
+            error_msg = f"Error searching menu items: {str(e)}"
+            print(f"🔍 TOOL ERROR: {error_msg}")
+            return error_msg
     
     @tool
     async def get_menu_item_details(item_name: str) -> str:
@@ -90,7 +109,9 @@ def create_add_item_tools(service_bundle) -> List:
     async def get_menu_items_by_category(category: str) -> str:
         """Get all menu items in a specific category."""
         try:
-            items = await menu_service.get_menu_items_by_category(1, category)  # TODO: Get restaurant_id from context
+            # Get all items by category, then filter for the specific category
+            all_items_by_category = await menu_service.get_menu_items_by_category(1)  # TODO: Get restaurant_id from context
+            items = all_items_by_category.get(category, [])
             return f"Items in {category}: {', '.join(items)}"
         except Exception as e:
             return f"Error getting items for category {category}: {str(e)}"
@@ -130,16 +151,16 @@ def create_add_item_tools(service_bundle) -> List:
     ]
 
 
-async def add_item_agent_node(state: ConversationWorkflowState, context: Dict[str, Any]) -> ConversationWorkflowState:
+async def add_item_agent(user_input: str, context: Dict[str, Any]) -> AddItemResponse:
     """
     ADD_ITEM agent node that parses customer requests for adding items to their order.
     
     Args:
-        state: Current conversation workflow state
+        user_input: The user's input string
         context: Context containing container and other services
         
     Returns:
-        Updated state with parsed items and response
+        AddItemResponse with parsed items and response
     """
     try:
         # Get service factory from context
@@ -163,7 +184,7 @@ async def add_item_agent_node(state: ConversationWorkflowState, context: Dict[st
         }
         
         # Create tools
-        tools = create_add_item_tools(service_bundle)
+        tools = create_add_item_tools(service_bundle, context)
         
         # Set up LLM
         llm = ChatOpenAI(
@@ -172,9 +193,14 @@ async def add_item_agent_node(state: ConversationWorkflowState, context: Dict[st
             temperature=0.1
         )
         
+        # Get conversation history and order state from context
+        conversation_history = context.get("conversation_history", [])
+        order_state = context.get("order_state", {})
+        
         # Get menu data for the prompt (using services from service bundle)
-        available_items = await menu_service.get_available_items_for_restaurant(int(state.restaurant_id))
-        restaurant_name = await menu_service.get_restaurant_name(int(state.restaurant_id))
+        restaurant_id = context.get("restaurant_id", "1")
+        available_items = await menu_service.get_available_items_for_restaurant(int(restaurant_id))
+        restaurant_name = await menu_service.get_restaurant_name(int(restaurant_id))
         
         # Create structured prompt
         from app.agents.prompts.add_item_prompts import get_add_item_prompt
@@ -196,16 +222,16 @@ async def add_item_agent_node(state: ConversationWorkflowState, context: Dict[st
                 })
         
         # Get restaurant info
-        restaurant_info = await menu_service.get_restaurant_name(int(state.restaurant_id))
+        restaurant_info = await menu_service.get_restaurant_name(int(restaurant_id))
         
         # Format menu items by category
-        menu_categories = await menu_service.get_menu_categories(int(state.restaurant_id))
-        menu_items_by_category = await menu_service.get_menu_items_by_category(int(state.restaurant_id))
+        menu_categories = await menu_service.get_menu_categories(int(restaurant_id))
+        menu_items_by_category = await menu_service.get_menu_items_by_category(int(restaurant_id))
         
         prompt = get_add_item_prompt(
-            user_input=state.normalized_user_input,
-            conversation_history=state.conversation_history,
-            order_state=state.order_state.__dict__,
+            user_input=user_input,
+            conversation_history=conversation_history,
+            order_state=order_state,
             menu_items=menu_items_by_category,
             restaurant_info=restaurant_info
         )
@@ -215,49 +241,157 @@ async def add_item_agent_node(state: ConversationWorkflowState, context: Dict[st
             model="gpt-4o",
             api_key=settings.OPENAI_API_KEY,
             temperature=0.1
-        ).with_structured_output(AddItemResponse, method="function_calling")
+        )
+
         
-        # Execute with structured output
-        response = await llm.ainvoke(prompt)
-        logger.info(f"LLM ADD_ITEM result: {response}")
+        # Create a clean agent prompt that relies on tools
+        agent_system_prompt = """You are an AI assistant for a drive-thru restaurant. Your job is to parse customer requests for adding items to their order.                                                                                   
+
+    INSTRUCTIONS:
+    1. Parse the customer's request to identify ALL items they want to add
+    2. Use the available tools to search for each item
+    3. For each item, create an ItemToAdd object:
+       - If found: set menu_item_id to the actual ID
+       - If not found: set menu_item_id=0 and ambiguous_item to the requested name
+    4. You must handle ALL items mentioned, not just the ones you can find
+
+    You have access to these tools:
+    - search_menu_items(query): Search for menu items by name
+    - get_menu_items_by_category(category): Get all items in a category
+    - get_menu_item_details(item_name): Get details about a specific item
+    - get_menu_categories(): Get all menu categories
+
+    BE SMART AND DECISIVE:
+    - Don't be overly cautious - if there's a clear single match, add it
+    - Use tools to check what's available, then make confident decisions
+    - Only ask for clarification when there are genuinely multiple options
+    - Always create ItemToAdd objects for ALL items the customer requested
+
+    Always be helpful and use the tools when you need specific information."""
+
+        # Create agent prompt
+        agent_prompt = ChatPromptTemplate.from_messages([
+            ("system", agent_system_prompt),
+            ("user", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ])
+        
+        # Create tools
+        tools = create_add_item_tools(service_bundle, context)
+        
+        # Create agent with tools
+        agent = create_openai_tools_agent(llm, tools, agent_prompt)
+        
+        # Create agent executor
+        agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+        
+        # Execute the agent
+        result = await agent_executor.ainvoke({
+            "input": user_input,
+            "conversation_history": conversation_history
+        })
+        
+        # Extract the response from the agent result
+        response_text = result.get("output", "")
+        
+        # Parse the agent's response to extract items dynamically
+        items_to_add = []
+        
+        # Use regex to find menu_item_id patterns in the response
+        import re
+        
+        # Find all (ID: X) patterns
+        menu_item_pattern = r'\(ID:\s*(\d+)\)'
+        menu_item_matches = re.findall(menu_item_pattern, response_text)
+        
+        # Find all ambiguous_item = "X" patterns  
+        ambiguous_pattern = r'ambiguous_item\s*=\s*"([^"]+)"'
+        ambiguous_matches = re.findall(ambiguous_pattern, response_text)
+        
+        # Create items based on found patterns
+        for menu_item_id in menu_item_matches:
+            if menu_item_id != "0":  # Skip ambiguous items (ID 0)
+                items_to_add.append(ItemToAdd(
+                    menu_item_id=int(menu_item_id),
+                    quantity=1,
+                    size=None,
+                    modifiers=[],
+                    special_instructions=None,
+                    ambiguous_item=None
+                ))
+        
+        # Add ambiguous items
+        for ambiguous_item in ambiguous_matches:
+            items_to_add.append(ItemToAdd(
+                menu_item_id=0,
+                quantity=1,
+                size=None,
+                modifiers=[],
+                special_instructions=None,
+                ambiguous_item=ambiguous_item
+            ))
+        
+        # If no items were parsed, create a fallback
+        if not items_to_add:
+            items_to_add.append(ItemToAdd(
+                menu_item_id=0,
+                quantity=1,
+                size=None,
+                modifiers=[],
+                special_instructions=None,
+                ambiguous_item=user_input
+            ))
+        
+        add_item_response = AddItemResponse(
+            response_type="success",
+            phrase_type=AudioPhraseType.ITEM_ADDED_SUCCESS,
+            response_text=response_text,
+            confidence=0.9,
+            items_to_add=items_to_add
+        )
         
         # DEBUG: Log the result
         print(f"\n🔍 DEBUG - ADD_ITEM AI RESPONSE:")
-        print(f"   Response Type: {response.response_type}")
-        print(f"   Phrase Type: {response.phrase_type}")
-        print(f"   Text: {response.response_text}")
-        print(f"   Items to add: {len(response.items_to_add)}")
-        for i, item in enumerate(response.items_to_add):
-            print(f"     Item {i+1}: ID {item.menu_item_id} x{item.quantity} - {item.size or 'no size'}")
+        print(f"   Response Type: {type(add_item_response)}")
+        print(f"   Items to Add: {len(add_item_response.items_to_add)}")
+        for i, item in enumerate(add_item_response.items_to_add):
+            print(f"     Item {i+1}: ID={item.menu_item_id}, Ambiguous={item.ambiguous_item}")
         
-        # Update state with the structured response
-        state.response_text = response.response_text
-        state.response_phrase_type = response.phrase_type
-        state.audio_url = None  # Will be generated by voice service
-        
-        # Store the parsed items for command creation
-        state.commands = []
-        for item in response.items_to_add:
-            state.commands.append({
-                "intent": "ADD_ITEM",
-                "confidence": response.confidence,
-                "slots": {
-                    "menu_item_id": item.menu_item_id,
-                    "quantity": item.quantity,
-                    "size": item.size,
-                    "modifiers": item.modifiers,
-                    "special_instructions": item.special_instructions
-                }
-            })
-        
-        logger.info(f"ADD_ITEM agent processed: {state.normalized_user_input}")
-        logger.info(f"Parsed items: {[f'ID {item.menu_item_id} x{item.quantity}' for item in response.items_to_add]}")
-        logger.info(f"Commands created: {len(state.commands)}")
+        return add_item_response
         
     except Exception as e:
         logger.error(f"ADD_ITEM agent failed: {e}")
-        state.response_text = "I'm sorry, I had trouble understanding your request. Could you please try again?"
-        state.response_phrase_type = AudioPhraseType.DIDNT_UNDERSTAND
-        state.audio_url = None
-    
-    return state
+        print(f"🔍 DEBUG - Agent exception: {e}")
+        
+        return AddItemResponse(
+            response_type="error",
+            phrase_type=AudioPhraseType.DIDNT_UNDERSTAND,
+            response_text="I'm sorry, I had trouble understanding your request. Could you please try again?",
+            confidence=0.0,
+            items_to_add=[ItemToAdd(
+                menu_item_id=0,
+                quantity=1,
+                size=None,
+                modifiers=[],
+                special_instructions=None
+            )]
+        )
+        
+        
+    except Exception as e:
+        logger.error(f"ADD_ITEM agent failed: {e}")
+        print(f"🔍 DEBUG - Agent exception: {e}")
+        
+        return AddItemResponse(
+            response_type="error",
+            phrase_type=AudioPhraseType.DIDNT_UNDERSTAND,
+            response_text="I'm sorry, I had trouble understanding your request. Could you please try again?",
+            confidence=0.0,
+            items_to_add=[ItemToAdd(
+                menu_item_id=0,
+                quantity=1,
+                size=None,
+                modifiers=[],
+                special_instructions=None
+            )]
+        )

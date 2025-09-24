@@ -50,7 +50,7 @@ class TestResponseRouterNode:
         result_state = await response_router_node(state)
         
         # Verify routing decision
-        assert result_state.next_node == "canned_response"
+        assert result_state.next_node == "voice_generation"
         assert result_state.response_phrase_type == AudioPhraseType.ITEM_ADDED_SUCCESS
     
     @pytest.mark.asyncio
@@ -86,7 +86,7 @@ class TestResponseRouterNode:
         result_state = await response_router_node(state)
         
         # Verify routing decision
-        assert result_state.next_node == "canned_response"
+        assert result_state.next_node == "voice_generation"
         assert result_state.response_phrase_type == AudioPhraseType.HOW_CAN_I_HELP
     
     @pytest.mark.asyncio
@@ -172,7 +172,7 @@ class TestResponseRouterNode:
         result_state = await response_router_node(state)
         
         # Verify fallback routing
-        assert result_state.next_node == "canned_response"
+        assert result_state.next_node == "voice_generation"
         assert result_state.response_phrase_type == AudioPhraseType.COME_AGAIN
 
 
@@ -228,4 +228,65 @@ class TestShouldContinueAfterResponseRouter:
         )
         
         result = should_continue_after_response_router(state)
-        assert result == "canned_response"  # Default fallback
+        assert result == "voice_generation"  # Default fallback
+
+    @pytest.mark.asyncio
+    async def test_route_clarification_command_success(self):
+        """Test routing CLARIFICATION_NEEDED + ALL_SUCCESS to clarification agent"""
+        # Create state with successful CLARIFICATION_NEEDED batch result
+        clarification_result = OrderResult.success(
+            message="Clarification needed",
+            data={
+                "clarification_type": "ambiguous_item",
+                "ambiguous_item": "burger",
+                "suggested_options": ["Quantum Burger", "Classic Burger"],
+                "user_input": "I want a burger",
+                "clarification_question": "Which burger would you like?",
+                "needs_user_response": True
+            }
+        )
+        
+        batch_result = CommandBatchResult(
+            results=[clarification_result],
+            total_commands=1,
+            successful_commands=1,
+            failed_commands=0,
+            warnings_count=0,
+            errors_by_category={},
+            errors_by_code={},
+            summary_message="Clarification needed",
+            command_family="CLARIFICATION_NEEDED",
+            batch_outcome="ALL_SUCCESS",  # Clarification commands return success
+            first_error_code=None,
+            response_payload=ResponsePayload(
+                enum_key="CLARIFICATION_NEEDED_ALL_SUCCESS",
+                args={},
+                telemetry={}
+            )
+        )
+        
+        state = ConversationWorkflowState(
+            session_id="test-session",
+            restaurant_id="1",
+            command_batch_result=batch_result
+        )
+        
+        # Execute response router
+        result_state = await response_router_node(state)
+        
+        # Assertions
+        assert result_state.next_node == "clarification_agent"
+        assert result_state.order_state_changed == False  # Clarification doesn't change order
+        
+        # Check that clarification context was prepared
+        assert hasattr(result_state, 'clarification_context')
+        assert result_state.clarification_context is not None
+        assert result_state.clarification_context['clarification_commands'] is not None
+        assert len(result_state.clarification_context['clarification_commands']) == 1
+        
+        # Check clarification data
+        clarification_cmd = result_state.clarification_context['clarification_commands'][0]
+        assert clarification_cmd['ambiguous_item'] == "burger"
+        assert clarification_cmd['suggested_options'] == ["Quantum Burger", "Classic Burger"]
+        assert clarification_cmd['clarification_question'] == "Which burger would you like?"
+        assert clarification_cmd['needs_user_response'] == True

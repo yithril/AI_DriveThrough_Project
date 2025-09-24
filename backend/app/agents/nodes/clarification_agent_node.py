@@ -148,6 +148,20 @@ async def _build_clarification_context(
     failed_items = [result.message for result in batch_result.get_failed_results()]
     successful_items = [result.message for result in batch_result.get_successful_results()]
     
+    # Extract clarification data from batch result
+    clarification_commands = []
+    for result in batch_result.results:
+        if (result.is_success and result.data and 
+            result.data.get("clarification_type") == "ambiguous_item"):
+            
+            clarification_commands.append({
+                "ambiguous_item": result.data.get("ambiguous_item"),
+                "suggested_options": result.data.get("suggested_options", []),
+                "user_input": result.data.get("user_input"),
+                "clarification_question": result.data.get("clarification_question"),
+                "needs_user_response": result.data.get("needs_user_response", True)
+            })
+    
     # Build order summary
     order_summary = _build_order_summary(state.order_state)
     
@@ -164,7 +178,10 @@ async def _build_clarification_context(
         similar_items={},  # Let AI figure out similarities from available_items
         conversation_history=state.conversation_history[-5:],  # Last 5 turns
         current_order_summary=order_summary,
-        restaurant_name=restaurant_name
+        restaurant_name=restaurant_name,
+        # NEW: Clarification data
+        clarification_commands=clarification_commands,
+        has_clarification_needed=len(clarification_commands) > 0
     )
     
     print(f"🔍 DEBUG - ClarificationContext:")
