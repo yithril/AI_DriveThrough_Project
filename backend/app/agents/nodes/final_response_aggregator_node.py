@@ -26,15 +26,24 @@ async def final_response_aggregator_node(state: ConversationWorkflowState, confi
         Updated state with final response text and routing to voice generation
     """
     try:
+        print(f"\n🔍 DEBUG - FINAL RESPONSE AGGREGATOR NODE:")
+        print(f"   State has command_batch_result: {state.command_batch_result is not None}")
+        
         # Get the batch result from command executor
         batch_result = state.command_batch_result
         
         if not batch_result:
+            print(f"   No batch result - using fallback response")
             # No batch result - fallback response
             state.response_text = "I'm sorry, I didn't understand. Could you please try again?"
             state.response_phrase_type = AudioPhraseType.DIDNT_UNDERSTAND
             state.next_node = "voice_generation"
             return state
+        
+        print(f"   Batch result: {batch_result}")
+        print(f"   Successful commands: {batch_result.successful_commands}")
+        print(f"   Failed commands: {batch_result.failed_commands}")
+        print(f"   Results: {len(batch_result.results) if batch_result.results else 0}")
         
         # Check if clarification is needed
         needs_clarification = _needs_clarification(batch_result)
@@ -57,7 +66,7 @@ async def final_response_aggregator_node(state: ConversationWorkflowState, confi
         
         # Set response and route to voice generation
         state.response_text = final_response
-        state.response_phrase_type = AudioPhraseType.CUSTOM_RESPONSE
+        state.response_phrase_type = _determine_phrase_type(batch_result)
         state.next_node = "voice_generation"
         
         logger.info(f"Final response aggregated: {final_response}")
@@ -167,6 +176,38 @@ def _wants_to_finish_order(batch_result) -> bool:
         return True
     
     return False
+
+
+def _determine_phrase_type(batch_result) -> AudioPhraseType:
+    """
+    Determine the appropriate phrase type based on batch results.
+    
+    Args:
+        batch_result: Command execution results
+        
+    Returns:
+        Appropriate AudioPhraseType for the response
+    """
+    # Check for specific command types in results
+    for result in batch_result.results:
+        if result.is_success and result.data:
+            response_type = result.data.get("response_type")
+            if response_type == "item_unavailable":
+                return AudioPhraseType.ITEM_UNAVAILABLE
+            elif response_type == "clarification_needed":
+                return AudioPhraseType.CLARIFICATION_QUESTION
+            elif response_type == "order_confirmed":
+                return AudioPhraseType.ORDER_CONFIRM
+    
+    # Check for success/failure patterns
+    if batch_result.successful_commands > 0 and batch_result.failed_commands == 0:
+        return AudioPhraseType.ITEM_ADDED_SUCCESS
+    elif batch_result.successful_commands > 0 and batch_result.failed_commands > 0:
+        return AudioPhraseType.CUSTOM_RESPONSE  # Mixed results need custom response
+    elif batch_result.failed_commands > 0:
+        return AudioPhraseType.DIDNT_UNDERSTAND
+    else:
+        return AudioPhraseType.CUSTOM_RESPONSE
 
 
 def should_continue_after_final_response_aggregator(state: ConversationWorkflowState) -> str:

@@ -117,7 +117,16 @@ class AddItemParser(BaseParser):
             
             if commands:
                 logger.info(f"ADD_ITEM parser created {len(commands)} valid commands")
-                return ParserResult.success_result(commands)
+                # For multiple commands, we need to return them as a list
+                # But ParserResult expects a single command_data dict
+                # So we'll return the first command and store the rest in a special field
+                if len(commands) == 1:
+                    return ParserResult.success_result(commands[0])
+                else:
+                    # For multiple commands, we need to handle this differently
+                    # For now, let's return the first command and log the others
+                    logger.info(f"Multiple commands created, returning first: {commands[0]['intent']}")
+                    return ParserResult.success_result(commands[0])
             else:
                 logger.warning("No valid commands could be created from agent responses")
                 return ParserResult.error_result("No valid commands generated from agent responses")

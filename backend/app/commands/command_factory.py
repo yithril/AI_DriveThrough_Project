@@ -80,6 +80,8 @@ class CommandFactory:
                 return cls._create_unknown_command(command_class, slots, restaurant_id, order_id)
             elif intent == "CLARIFICATION_NEEDED":
                 return cls._create_clarification_needed_command(command_class, slots, restaurant_id, order_id)
+            elif intent == "ITEM_UNAVAILABLE":
+                return cls._create_item_unavailable_command(command_class, slots, restaurant_id, order_id)
             else:
                 return None
                 
@@ -159,6 +161,16 @@ class CommandFactory:
             suggested_options=slots.get("suggested_options", []),
             user_input=slots.get("user_input", ""),
             clarification_question=slots.get("clarification_question")
+        )
+    
+    @classmethod
+    def _create_item_unavailable_command(cls, command_class, slots: Dict[str, Any], restaurant_id: int, order_id: int):
+        """Create ItemUnavailableCommand from slots"""
+        return command_class(
+            restaurant_id=restaurant_id,
+            order_id=order_id,
+            requested_item=slots.get("requested_item", ""),
+            message=slots.get("message", "Sorry, we don't have that item on our menu")
         )
     
     

@@ -9,7 +9,7 @@ class Settings:
     """Application settings with feature flags"""
     
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/ai_drivethru")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5433/ai_drivethru")
     
     # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
@@ -51,8 +51,8 @@ class Settings:
     AI_CONFIDENCE_THRESHOLD: float = float(os.getenv("AI_CONFIDENCE_THRESHOLD", "0.8"))
     
     # Voice Configuration (required - no defaults)
-    TTS_VOICE: str = os.getenv("TTS_VOICE", "")
-    TTS_LANGUAGE: str = os.getenv("TTS_LANGUAGE", "")
+    TTS_VOICE: str = os.getenv("TTS_VOICE", "nova")
+    TTS_LANGUAGE: str = os.getenv("TTS_LANGUAGE", "english")
     
     # S3 Configuration
     S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME", "ai-drivethru-storage")

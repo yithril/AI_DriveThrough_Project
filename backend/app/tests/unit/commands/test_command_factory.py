@@ -22,7 +22,7 @@ class TestCommandFactory:
         
         expected_intents = [
             "ADD_ITEM", "REMOVE_ITEM", "CLEAR_ORDER", "CONFIRM_ORDER",
-            "QUESTION", "UNKNOWN"
+            "QUESTION", "UNKNOWN", "CLARIFICATION_NEEDED", "ITEM_UNAVAILABLE"
         ]
         
         for intent in expected_intents:
@@ -84,7 +84,7 @@ class TestCommandFactory:
             "intent": "ADD_ITEM",
             "confidence": 1.0,
             "slots": {
-                "item_id": 123,
+                "menu_item_id": 123,
                 "quantity": 2,
                 "size": "large",
                 "modifiers": ["no_pickles", "extra_cheese"],
@@ -202,6 +202,27 @@ class TestCommandFactory:
         assert command.user_input == "I don't understand"
         assert command.clarifying_question == "Could you please repeat that?"
     
+    def test_create_command_item_unavailable(self):
+        """Test creating ItemUnavailableCommand"""
+        intent_data = {
+            "intent": "ITEM_UNAVAILABLE",
+            "confidence": 1.0,
+            "slots": {
+                "requested_item": "Quantum Cheeseburger",
+                "message": "Sorry, we don't have Quantum Cheeseburger on our menu"
+            },
+            "needs_clarification": False
+        }
+        
+        command = CommandFactory.create_command(intent_data, 1, 100)
+        
+        assert command is not None
+        assert command.__class__.__name__ == "ItemUnavailableCommand"
+        assert command.restaurant_id == 1
+        assert command.order_id == 100
+        assert command.requested_item == "Quantum Cheeseburger"
+        assert command.message == "Sorry, we don't have Quantum Cheeseburger on our menu"
+    
     def test_create_command_unsupported_intent(self):
         """Test creating command for unsupported intent"""
         intent_data = {
@@ -249,7 +270,7 @@ class TestCommandFactory:
             "intent": "ADD_ITEM",
             "confidence": 1.0,
             "slots": {
-                "item_id": "invalid_id",  # Should be int, not string
+                "menu_item_id": "invalid_id",  # Should be int, not string
                 "quantity": "invalid_quantity"  # Should be int, not string
             },
             "needs_clarification": False
@@ -287,7 +308,7 @@ class TestCommandFactory:
             "intent": "ADD_ITEM",
             "confidence": 0.95,
             "slots": {
-                "item_id": 999,
+                "menu_item_id": 999,
                 "quantity": 3,
                 "size": "medium",
                 "modifiers": ["no_onions", "extra_pickles", "hold_mayo"],
@@ -315,7 +336,7 @@ class TestCommandFactory:
         intent_data = {
             "intent": "ADD_ITEM",
             "confidence": 1.0,
-            "slots": {"item_id": 123, "quantity": 0},
+            "slots": {"menu_item_id": 123, "quantity": 0},
             "needs_clarification": False
         }
         
@@ -327,7 +348,7 @@ class TestCommandFactory:
         intent_data = {
             "intent": "ADD_ITEM",
             "confidence": 1.0,
-            "slots": {"item_id": 123, "modifiers": []},
+            "slots": {"menu_item_id": 123, "modifiers": []},
             "needs_clarification": False
         }
         
@@ -340,7 +361,7 @@ class TestCommandFactory:
             "intent": "ADD_ITEM",
             "confidence": 1.0,
             "slots": {
-                "item_id": 123,
+                "menu_item_id": 123,
                 "size": None,
                 "modifiers": None,
                 "special_instructions": None
@@ -358,16 +379,20 @@ class TestCommandFactory:
         """Test creating commands for all supported intent types"""
         intent_types = [
             "ADD_ITEM", "REMOVE_ITEM", "CLEAR_ORDER", "CONFIRM_ORDER",
-            "QUESTION", "UNKNOWN"
+            "QUESTION", "UNKNOWN", "CLARIFICATION_NEEDED", "ITEM_UNAVAILABLE"
         ]
         
         for intent_type in intent_types:
             # Provide appropriate slots for each intent type
             slots = {}
             if intent_type == "ADD_ITEM":
-                slots = {"item_id": 123}
+                slots = {"menu_item_id": 123}
             elif intent_type == "REMOVE_ITEM":
                 slots = {"target_ref": "last_item"}
+            elif intent_type == "ITEM_UNAVAILABLE":
+                slots = {"requested_item": "test item", "message": "Sorry, we don't have that item"}
+            elif intent_type == "CLARIFICATION_NEEDED":
+                slots = {"ambiguous_item": "test item", "suggested_options": ["option1", "option2"]}
             elif intent_type in ["QUESTION", "UNKNOWN"]:
                 slots = {}  # These can work with empty slots
             

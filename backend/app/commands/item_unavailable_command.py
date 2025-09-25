@@ -5,9 +5,12 @@ Command for when a customer requests an item that doesn't exist on the menu.
 """
 
 from typing import Dict, Any, Optional
+from sqlalchemy.ext.asyncio import AsyncSession
 from .base_command import BaseCommand
 from .command_context import CommandContext
 from ..constants.audio_phrases import AudioPhraseType
+from ..dto.order_result import OrderResult
+import logging
 
 
 class ItemUnavailableCommand(BaseCommand):
@@ -15,44 +18,66 @@ class ItemUnavailableCommand(BaseCommand):
     Command for handling unavailable items
     """
     
-    def __init__(self, command_data: Dict[str, Any]):
-        super().__init__(command_data)
-        self.requested_item = command_data.get("slots", {}).get("requested_item", "item")
-        self.message = command_data.get("slots", {}).get("message", f"Sorry, we don't have {self.requested_item} on our menu")
+    def __init__(
+        self, 
+        restaurant_id: int, 
+        order_id: int,
+        requested_item: str,
+        message: Optional[str] = None
+    ):
+        """
+        Initialize item unavailable command
+        
+        Args:
+            restaurant_id: Restaurant ID
+            order_id: Order ID
+            requested_item: The item that was requested but is unavailable
+            message: Custom message (optional, will generate default if not provided)
+        """
+        super().__init__(restaurant_id, order_id)
+        self.requested_item = requested_item
+        self.message = message or f"Sorry, we don't have {requested_item} on our menu"
+        self.confidence = 1.0  # Item unavailable commands are always confident
+        self.logger = logging.getLogger(__name__)
     
-    async def execute(self, context: CommandContext) -> Dict[str, Any]:
+    async def execute(self, context: CommandContext, db: AsyncSession) -> OrderResult:
         """
         Execute the item unavailable command
         
         Args:
             context: Command execution context
+            db: Database session
             
         Returns:
-            Dictionary with execution results
+            OrderResult: Result indicating item is unavailable
         """
         try:
             # Log the unavailable item request
             self.logger.info(f"Item unavailable: {self.requested_item}")
+            print(f"\n🔍 DEBUG - ITEM UNAVAILABLE COMMAND EXECUTE:")
+            print(f"   Requested item: {self.requested_item}")
+            print(f"   Message: {self.message}")
             
-            # Return response indicating item is not available
-            return {
-                "success": True,
-                "response_type": "item_unavailable",
-                "phrase_type": AudioPhraseType.ITEM_UNAVAILABLE,
-                "response_text": self.message,
-                "confidence": self.confidence,
-                "requested_item": self.requested_item
-            }
+            # Return success result indicating item is not available (this is a successful response to user)
+            result = OrderResult.success(
+                message=self.message,
+                data={
+                    "response_type": "item_unavailable",
+                    "requested_item": self.requested_item,
+                    "phrase_type": AudioPhraseType.ITEM_UNAVAILABLE
+                }
+            )
+            
+            print(f"   Result: {result}")
+            print(f"   Result is_success: {result.is_success}")
+            print(f"   Result data: {result.data}")
+            
+            return result
             
         except Exception as e:
             self.logger.error(f"Item unavailable command execution failed: {e}")
-            return {
-                "success": False,
-                "response_type": "error",
-                "phrase_type": AudioPhraseType.DIDNT_UNDERSTAND,
-                "response_text": "I'm sorry, I had trouble processing your request. Could you please try again?",
-                "confidence": 0.0
-            }
+            print(f"   Exception: {e}")
+            return OrderResult.error(f"Failed to process unavailable item request: {str(e)}")
     
     def validate(self) -> bool:
         """

@@ -27,9 +27,13 @@ class ServiceFactory:
     
     # Database-dependent service factories
     def create_menu_service(self, db_session: AsyncSession):
-        """Create MenuService with database session"""
+        """Create MenuService with database session and cache service"""
         from app.services.menu_service import MenuService
-        return MenuService(db_session)
+        from app.services.redis_menu_cache_service import RedisMenuCacheService
+        
+        # Create cache service
+        cache_service = RedisMenuCacheService()
+        return MenuService(db_session, cache_service)
     
     def create_restaurant_service(self, db_session: AsyncSession):
         """Create RestaurantService with database session"""
@@ -65,6 +69,14 @@ class ServiceFactory:
     def create_redis_service(self):
         """Create RedisService (no database dependencies)"""
         return self.container.redis_service()
+    
+    def create_menu_cache_loader(self):
+        """Create MenuCacheLoader with Redis cache service"""
+        from app.services.menu_cache_loader import MenuCacheLoader
+        from app.services.redis_menu_cache_service import RedisMenuCacheService
+        
+        cache_service = RedisMenuCacheService()
+        return MenuCacheLoader(cache_service)
 
 
 def create_service_factory(container: "Container") -> ServiceFactory:

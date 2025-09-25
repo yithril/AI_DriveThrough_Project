@@ -31,9 +31,9 @@ def build_item_extraction_prompt(user_input: str, conversation_history: list, or
     
     # Build order context
     order_text = ""
-    if order_state and order_state.get("line_items"):
+    if order_state and hasattr(order_state, 'line_items') and order_state.line_items:
         order_text = "Current order:\n"
-        for item in order_state["line_items"]:
+        for item in order_state.line_items:
             order_text += f"- {item.get('name', 'Unknown item')} (qty: {item.get('quantity', 1)})\n"
     
     prompt = f"""

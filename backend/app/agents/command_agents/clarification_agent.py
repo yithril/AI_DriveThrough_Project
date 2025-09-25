@@ -155,20 +155,27 @@ async def _build_clarification_context(
     return context
 
 
-def _build_order_summary(order_state: Dict[str, Any]) -> str:
+def _build_order_summary(order_state) -> str:
     """
     Build a summary of the current order state.
     
     Args:
-        order_state: Current order state dictionary
+        order_state: Current order state (OrderState object or dict)
         
     Returns:
         Formatted order summary string
     """
-    if not order_state or not order_state.get("items"):
+    if not order_state:
         return "Your order is currently empty."
     
-    items = order_state.get("items", [])
+    # Handle both OrderState object and dict
+    if hasattr(order_state, 'line_items'):
+        items = order_state.line_items
+    elif isinstance(order_state, dict):
+        items = order_state.get("items", [])
+    else:
+        return "Your order is currently empty."
+    
     if not items:
         return "Your order is currently empty."
     

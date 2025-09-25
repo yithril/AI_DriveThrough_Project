@@ -39,10 +39,14 @@ class CommandDataValidator:
         Returns:
             Tuple of (is_valid, list_of_errors)
         """
+        print(f"\n🔍 DEBUG - COMMAND DATA VALIDATOR:")
+        print(f"   Input data: {data}")
+        
         errors = []
         
         # Check if data is a dictionary
         if not isinstance(data, dict):
+            print(f"   Error: Data is not a dictionary, got {type(data).__name__}")
             errors.append(ValidationError(
                 field="root",
                 message="Command data must be a dictionary",
@@ -51,8 +55,10 @@ class CommandDataValidator:
             return False, errors
         
         # Check required fields
+        print(f"   Checking required fields: {cls.REQUIRED_FIELDS}")
         for field in cls.REQUIRED_FIELDS:
             if field not in data:
+                print(f"   Error: Missing required field '{field}'")
                 errors.append(ValidationError(
                     field=field,
                     message=f"Required field '{field}' is missing"
@@ -60,18 +66,26 @@ class CommandDataValidator:
         
         # Validate intent field
         if "intent" in data:
+            print(f"   Validating intent: '{data['intent']}'")
+            valid_intents = [command.value for command in CommandType]
+            print(f"   Valid intents: {valid_intents}")
+            
             if not isinstance(data["intent"], str):
+                print(f"   Error: Intent is not a string, got {type(data['intent']).__name__}")
                 errors.append(ValidationError(
                     field="intent",
                     message="Intent must be a string",
                     value=type(data["intent"]).__name__
                 ))
-            elif data["intent"] not in [command.value for command in CommandType]:
+            elif data["intent"] not in valid_intents:
+                print(f"   Error: Intent '{data['intent']}' not in valid intents")
                 errors.append(ValidationError(
                     field="intent",
                     message=f"Invalid intent: {data['intent']}",
                     value=data["intent"]
                 ))
+            else:
+                print(f"   Intent validation passed")
         
         # Validate confidence field
         if "confidence" in data:

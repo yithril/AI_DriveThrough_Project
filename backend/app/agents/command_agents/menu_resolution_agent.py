@@ -44,11 +44,18 @@ def create_menu_resolution_tools(service_bundle, context) -> List:
         """Search for menu items by name or description. Returns item names for agent to use."""
         try:
             restaurant_id = context.get("restaurant_id", "1")
+            print(f"\n🔍 DEBUG - MENU SEARCH TOOL:")
+            print(f"   Query: '{query}'")
+            print(f"   Restaurant ID: {restaurant_id}")
+            
             matching_items = await menu_service.search_menu_items(int(restaurant_id), query)
+            print(f"   Matching items found: {len(matching_items)}")
+            print(f"   Matching items: {matching_items}")
             
             if not matching_items:
                 # Get all available items for context
                 all_items = await menu_service.get_available_items_for_restaurant(int(restaurant_id))
+                print(f"   All available items: {all_items[:10]}")
                 return f"No menu items found matching '{query}'. Available items: {', '.join(all_items[:10])}"
             
             result = f"Found {len(matching_items)} menu items matching '{query}':\n"
@@ -57,6 +64,7 @@ def create_menu_resolution_tools(service_bundle, context) -> List:
             
             return result
         except Exception as e:
+            print(f"   Error in search_menu_items: {str(e)}")
             return f"Error searching menu items: {str(e)}"
     
     @tool

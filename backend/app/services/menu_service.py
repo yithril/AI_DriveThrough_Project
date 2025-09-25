@@ -5,22 +5,28 @@ Menu Service for accessing menu data
 from typing import List, Dict, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.unit_of_work import UnitOfWork
+from app.services.menu_cache_interface import MenuCacheInterface
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MenuService:
     """
     Service for accessing menu data across the application.
-    Uses UnitOfWork pattern for repository access.
+    Uses cache-first approach with database fallback.
     """
     
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, cache_service: Optional[MenuCacheInterface] = None):
         """
-        Initialize MenuService with database session
+        Initialize MenuService with database session and cache service
         
         Args:
             db: Database session
+            cache_service: Menu cache service (optional)
         """
         self.db = db
+        self.cache_service = cache_service
     
     async def get_available_items_for_restaurant(self, restaurant_id: int) -> List[str]:
         """
@@ -36,10 +42,31 @@ class MenuService:
             List[str]: List of available menu item names
         """
         try:
+            print(f"\n🔍 DEBUG - GET_AVAILABLE_ITEMS:")
+            print(f"   Restaurant ID: {restaurant_id}")
+            
+            # Try cache first
+            if self.cache_service:
+                try:
+                    available_items = await self.cache_service.get_available_items(restaurant_id)
+                    if available_items:
+                        print(f"   Available items from cache: {available_items}")
+                        return available_items
+                    print(f"   No cache found, falling back to database")
+                except Exception as cache_error:
+                    print(f"   Cache error: {cache_error}, falling back to database")
+            
+            # Fallback to database
             async with UnitOfWork(self.db) as uow:
                 menu_items = await uow.menu_items.get_by_restaurant(restaurant_id)
-                return [item.name for item in menu_items if item.is_available]
+                print(f"   Total menu items in DB: {len(menu_items)}")
+                
+                available_items = [item.name for item in menu_items if item.is_available]
+                print(f"   Available items from DB: {available_items}")
+                
+                return available_items
         except Exception as e:
+            print(f"   Error in get_available_items_for_restaurant: {str(e)}")
             # Log error but return empty list to prevent agent failures
             return []
     
@@ -55,6 +82,16 @@ class MenuService:
             List of matching menu item names
         """
         try:
+            # Try cache first
+            if self.cache_service:
+                try:
+                    matching_items = await self.cache_service.search_menu_items(restaurant_id, query)
+                    if matching_items:
+                        return [item.name for item in matching_items]
+                except Exception as cache_error:
+                    logger.warning(f"Cache search failed: {cache_error}, falling back to database")
+            
+            # Fallback to database
             async with UnitOfWork(self.db) as uow:
                 menu_items = await uow.menu_items.get_by_restaurant(restaurant_id)
                 available_items = [item.name for item in menu_items if item.is_available]

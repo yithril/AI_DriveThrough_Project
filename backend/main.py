@@ -7,9 +7,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
+import asyncio
 
 from app.core.container import Container
 from app.core.logging import setup_logging, get_logger
+from app.core.startup import startup_tasks
 from app.api import restaurants, ai, sessions, admin
 
 # Set up logging
@@ -33,6 +35,9 @@ container.wire(modules=["app.api.sessions", "app.api.ai", "app.api.admin"])
 
 # Initialize resources (connects to Redis)
 container.init_resources()
+
+# Run startup tasks (load menu cache)
+asyncio.create_task(startup_tasks())
 
 # Create FastAPI app
 app = FastAPI(

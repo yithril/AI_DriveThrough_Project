@@ -26,6 +26,12 @@ async def command_executor_node(state: ConversationWorkflowState, config = None)
     Returns:
         Updated state with command execution results
     """
+    print(f"\n🔍 DEBUG - COMMAND EXECUTOR NODE:")
+    print(f"   State has commands: {state.commands is not None}")
+    print(f"   Commands count: {len(state.commands) if state.commands else 0}")
+    if state.commands:
+        print(f"   Commands: {state.commands}")
+    
     # Get service factory from config
     service_factory = config.get("configurable", {}).get("service_factory") if config else None
     if not service_factory:
@@ -75,6 +81,8 @@ async def command_executor_node(state: ConversationWorkflowState, config = None)
         valid_commands = []
         validation_errors = []
         
+        print(f"   Validating {len(state.commands) if state.commands else 0} commands")
+        
         if not state.commands:
             # No commands to execute - create a failed batch result
             from app.agents.utils.batch_analysis import analyze_batch_outcome, get_first_error_code
@@ -118,23 +126,31 @@ async def command_executor_node(state: ConversationWorkflowState, config = None)
         
         for cmd_dict in state.commands:
             try:
+                print(f"   Validating command: {cmd_dict}")
                 # Validate command data structure
                 is_valid, validator_errors = CommandDataValidator.validate(cmd_dict)
                 
                 if not is_valid:
                     error_summary = CommandDataValidator.get_validation_summary(validator_errors)
+                    print(f"   Validation failed: {error_summary}")
                     validation_errors.append(f"Command validation failed: {error_summary}")
                     continue
+                else:
+                    print(f"   Validation passed")
                 
                 # Create command object using factory
+                print(f"   Creating command for intent: {cmd_dict.get('intent')}")
                 command = CommandFactory.create_command(
                     intent_data=cmd_dict,
                     restaurant_id=command_context.restaurant_id,
                     order_id=command_context.get_order_id()
                 )
+                print(f"   Command created: {command is not None}")
                 if command:
+                    print(f"   Command type: {type(command).__name__}")
                     valid_commands.append(command)
                 else:
+                    print(f"   Command creation failed for intent: {cmd_dict.get('intent', 'UNKNOWN')}")
                     validation_errors.append(f"Unsupported intent: {cmd_dict.get('intent', 'UNKNOWN')}")
                     
             except Exception as e:
@@ -143,14 +159,18 @@ async def command_executor_node(state: ConversationWorkflowState, config = None)
         
         # Step 2: Execute valid commands within a transaction
         if valid_commands:
+            print(f"   Executing {len(valid_commands)} valid commands")
             command_invoker = CommandInvoker()
             
             # Execute commands within Unit of Work transaction
             try:
                 async with uow:
                     batch_result = await command_invoker.execute_multiple_commands(valid_commands, command_context)
+                    print(f"   Batch result created: {batch_result}")
                     state.command_batch_result = batch_result
+                    print(f"   Command batch result set in state")
             except Exception as uow_error:
+                print(f"   UoW transaction failed: {uow_error}")
                 logger.error(f"UoW transaction failed: {uow_error}")
                 raise
             
