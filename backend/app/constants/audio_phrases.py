@@ -46,6 +46,7 @@ class AudioPhraseType(Enum):
     ITEM_REMOVED_SUCCESS = "item_removed_success" 
     ITEM_UPDATED_SUCCESS = "item_updated_success"
     ORDER_CLEARED_SUCCESS = "order_cleared_success"
+    ITEM_UNAVAILABLE = "item_unavailable"
     SYSTEM_ERROR_RETRY = "system_error_retry"
     NOTHING_TO_REPEAT = "nothing_to_repeat"
     
@@ -115,6 +116,7 @@ class AudioPhraseConstants:
             AudioPhraseType.ITEM_ADDED_SUCCESS: "Added that to your order. Would you like anything else?",
             AudioPhraseType.ITEM_REMOVED_SUCCESS: "Removed that from your order. Would you like anything else?",
             AudioPhraseType.ITEM_UPDATED_SUCCESS: "Updated your item. Would you like anything else?",
+            AudioPhraseType.ITEM_UNAVAILABLE: "Sorry, we don't have that on our menu. Would you like to try something else?",
             AudioPhraseType.ORDER_CLEARED_SUCCESS: "Your order has been cleared.",
             AudioPhraseType.NOTHING_TO_REPEAT: "There's nothing to repeat yet.",
             AudioPhraseType.SYSTEM_ERROR_RETRY: "I'm sorry, I'm having some technical difficulties. Please try again.",

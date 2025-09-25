@@ -20,7 +20,6 @@ class IntentType(str, Enum):
     UNKNOWN = "UNKNOWN"
     CLARIFICATION_NEEDED = "CLARIFICATION_NEEDED"
 
-
 class ChangeOperation(BaseModel):
     """Individual change operation for MODIFY_ITEM"""
     op: str = Field(..., description="Operation type: set_size, add_modifier, remove_modifier, set_quantity, add_special_instruction")
@@ -35,6 +34,7 @@ class IntentClassificationResult(BaseModel):
     """
     intent: IntentType = Field(..., description="The classified intent")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score 0-1")
+    cleansed_input: str = Field(..., description="Cleaned version of user input with irrelevant parts removed")
 
 
 class AddItemSlots(BaseModel):

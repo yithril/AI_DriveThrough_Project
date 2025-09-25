@@ -19,6 +19,81 @@ from ..parser.remove_item_parser import RemoveItemParser
 from ..parser.modify_item_parser import ModifyItemParser
 
 
+def _build_parser_context(state: ConversationWorkflowState, service_factory, shared_db_session) -> Dict[str, Any]:
+    """
+    Build context specific to what each parser needs based on intent type.
+    
+    Args:
+        state: Current conversation workflow state
+        service_factory: Service factory for database access
+        shared_db_session: Shared database session
+        
+    Returns:
+        Context dictionary with only the data the parser needs
+    """
+    intent_type = state.intent_type
+    
+    # Base context that all parsers need
+    base_context = {
+        "user_input": state.normalized_user_input,
+        "restaurant_id": state.restaurant_id,
+        "session_id": state.session_id
+    }
+    
+    # Add intent-specific data
+    if intent_type == IntentType.ADD_ITEM:
+        # AddItemParser needs full context for menu resolution and order state
+        return {
+            **base_context,
+            "service_factory": service_factory,
+            "shared_db_session": shared_db_session,
+            "conversation_history": state.conversation_history,
+            "order_state": state.order_state,
+            "current_state": state.current_state.value
+        }
+    
+    elif intent_type == IntentType.REMOVE_ITEM:
+        # RemoveItemParser needs order state for item references
+        return {
+            **base_context,
+            "order_state": state.order_state,
+            "conversation_history": state.conversation_history[-3:],  # Last 3 turns
+            "last_mentioned_item": state.order_state.last_mentioned_item_ref
+        }
+    
+    elif intent_type == IntentType.MODIFY_ITEM:
+        # ModifyItemParser needs order state and conversation history
+        return {
+            **base_context,
+            "order_state": state.order_state,
+            "conversation_history": state.conversation_history[-3:],
+            "last_mentioned_item": state.order_state.last_mentioned_item_ref
+        }
+    
+    elif intent_type == IntentType.QUESTION:
+        # QuestionParser needs restaurant context and menu access
+        return {
+            **base_context,
+            "service_factory": service_factory,
+            "shared_db_session": shared_db_session,
+            "conversation_history": state.conversation_history[-3:]
+        }
+    
+    elif intent_type in [IntentType.CLEAR_ORDER, IntentType.CONFIRM_ORDER]:
+        # Simple parsers that don't need much context
+        return {
+            **base_context,
+            "order_state": state.order_state  # Just need to know if there's an order
+        }
+    
+    else:
+        # Unknown or other intents - minimal context
+        return {
+            **base_context,
+            "conversation_history": state.conversation_history[-3:]
+        }
+
+
 class IntentParserRouter:
     """
     Router that dispatches classified intents to appropriate parsers.
@@ -87,23 +162,27 @@ async def intent_parser_router_node(state: ConversationWorkflowState, config = N
     service_factory = config.get("configurable", {}).get("service_factory") if config else None
     shared_db_session = config.get("configurable", {}).get("shared_db_session") if config else None
     
-    # Build context for parsers
-    context = {
-        "order_items": state.order_state.line_items,
-        "current_state": state.current_state.value,
-        "conversation_history": state.conversation_history[-3:],  # Last 3 turns
-        "last_mentioned_item": state.order_state.last_mentioned_item_ref,
-        "restaurant_id": state.restaurant_id,
-        "session_id": state.session_id,
-        "service_factory": service_factory,  # Pass the factory to parsers
-        "shared_db_session": shared_db_session  # Pass the shared session to parsers
-    }
+    # Debug: Show input transformation
+    print(f"\n🔍 INTENT PARSER ROUTER - Input transformation:")
+    print(f"   Original: '{state.user_input}'")
+    print(f"   Normalized: '{state.normalized_user_input}'")
+    print(f"   Intent: {state.intent_type}")
     
-    # Route intent to appropriate parser
+    # Build context specific to what each parser needs
+    parser_context = _build_parser_context(state, service_factory, shared_db_session)
+    
+    # Debug: Show what context the parser will receive
+    print(f"   Parser context keys: {list(parser_context.keys())}")
+    if "order_state" in parser_context:
+        print(f"   Order items: {len(parser_context['order_state'].line_items)}")
+    if "conversation_history" in parser_context:
+        print(f"   Conversation history: {len(parser_context['conversation_history'])} turns")
+    
+    # Route intent to appropriate parser using normalized/cleansed input
     result = await router.parse_intent(
         intent_type=state.intent_type,
-        user_input=state.user_input,
-        context=context
+        user_input=state.normalized_user_input,  # Use cleansed input instead of original
+        context=parser_context
     )
     
     if result.success:

@@ -164,7 +164,7 @@ async def command_executor_node(state: ConversationWorkflowState, config = None)
         else:
             # No valid commands to execute
             state.command_batch_result = None
-            # Note: order_state_changed is now set by response_router_node
+            # Note: order_state_changed is now set by final_response_aggregator_node
             state.response_text = "I'm sorry, I couldn't understand what you wanted to order."
         
         # Step 3: Store validation errors
@@ -175,7 +175,7 @@ async def command_executor_node(state: ConversationWorkflowState, config = None)
     except Exception as e:
         state.add_error(f"Command execution failed: {str(e)}")
         state.command_batch_result = None
-        # Note: order_state_changed is now set by response_router_node
+        # Note: order_state_changed is now set by final_response_aggregator_node
         state.response_text = "I'm sorry, there was an error processing your order."
     
     
@@ -194,18 +194,9 @@ def should_continue_after_command_executor(state: ConversationWorkflowState) -> 
     """
     # Route based on command execution results
     if state.command_batch_result:
-        # Check if we need follow-up based on the batch outcome
-        if state.command_batch_result.batch_outcome == "PARTIAL_SUCCESS_ASK":
-            return "clarification_agent"  # Need to ask for clarification
-        elif state.command_batch_result.batch_outcome == "ALL_SUCCESS":
-            return "response_router"  # All successful, route to response router
-        elif state.command_batch_result.batch_outcome == "ALL_FAILED":
-            return "clarification_agent"  # All failed, need clarification
-        elif state.command_batch_result.failed_commands > 0:
-            return "clarification_agent"  # Some commands failed, may need clarification
-        else:
-            return "response_router"  # Default to response router
+        # Route to final response aggregator for all cases
+        return "final_response_aggregator"
     elif state.has_errors():
-        return "clarification_agent"  # Validation errors, may need clarification
+        return "final_response_aggregator"  # Validation errors, may need clarification
     else:
-        return "response_router"  # Default to response router
+        return "final_response_aggregator"  # Default to final response aggregator

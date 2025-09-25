@@ -1,25 +1,28 @@
 """
 Add Item Parser
 
-LLM-based parser for ADD_ITEM intents that wraps the existing ADD_ITEM agent.
-Extracts structured data from natural language input using OpenAI GPT-4.
+Parser for ADD_ITEM intents that uses the new two-agent pipeline:
+1. Item Extraction Agent - extracts items from user input
+2. Menu Resolution Agent - resolves items against menu database
 """
 
 import logging
 from typing import Dict, Any
 from .base_parser import BaseParser, ParserResult
 from ...commands.intent_classification_schema import IntentType
-from ...agents.command_agents.add_item_agent import add_item_agent
-from ...agents.state import ConversationWorkflowState
+from ...agents.command_agents.item_extraction_agent import item_extraction_agent
+from ...agents.command_agents.menu_resolution_agent import menu_resolution_agent
 
 logger = logging.getLogger(__name__)
 
 
 class AddItemParser(BaseParser):
     """
-    LLM-based parser for ADD_ITEM intents
+    Parser for ADD_ITEM intents using the new two-agent pipeline
     
-    Wraps the existing ADD_ITEM agent to follow the standard parser pattern.
+    Uses:
+    1. Item Extraction Agent - extracts items from user input
+    2. Menu Resolution Agent - resolves items against menu database
     """
     
     def __init__(self):
@@ -27,7 +30,7 @@ class AddItemParser(BaseParser):
     
     async def parse(self, user_input: str, context: Dict[str, Any]) -> ParserResult:
         """
-        Parse ADD_ITEM intent using the existing ADD_ITEM agent
+        Parse ADD_ITEM intent using the two-agent pipeline
         
         Args:
             user_input: Raw user input text
@@ -37,132 +40,88 @@ class AddItemParser(BaseParser):
             ParserResult with structured command data
         """
         try:
-            # Create a mock state for the agent
-            from app.models.state_machine_models import OrderState
-            
-            # Create proper OrderState object
-            order_items = context.get("order_items", [])
-            order_state = OrderState(
-                line_items=order_items,
-                last_mentioned_item_ref=None,
-                totals={}
-            )
-            
-            state = ConversationWorkflowState(
-                session_id=context.get("session_id", "test"),
-                restaurant_id=str(context.get("restaurant_id", 1)),
-                user_input=user_input,
-                normalized_user_input=user_input,
-                conversation_history=context.get("conversation_history", []),
-                order_state=order_state,
-                current_state=context.get("current_state", "IDLE")
-            )
-            
-            # Call the AddItemAgent to get structured response
-            from app.agents.command_agents.add_item_agent import add_item_agent
-            
-            # Create context for the agent
-            agent_context = {
-                "service_factory": context.get("service_factory"),
-                "shared_db_session": context.get("shared_db_session"),
-                "conversation_history": state.conversation_history,
-                "order_state": state.order_state.__dict__ if state.order_state else {},
-                "restaurant_id": state.restaurant_id
+            # Step 1: Extract items from user input using Item Extraction Agent
+            extraction_context = {
+                "restaurant_id": context.get("restaurant_id"),
+                "conversation_history": context.get("conversation_history", []),
+                "order_state": context.get("order_state", {})
             }
             
-            # Call the agent to get structured response
-            agent_result = await add_item_agent(state.normalized_user_input, agent_context)
+            extraction_response = await item_extraction_agent(user_input, extraction_context)
             
-            # Extract the structured response from the agent
-            if agent_result and hasattr(agent_result, 'items_to_add'):
-                response = agent_result
-                commands = []
-                
-                # Create commands from the structured data
-                for item in response.items_to_add:
-                    if item.menu_item_id == 0:
-                        # Ambiguous item - create CLARIFICATION_NEEDED command
-                        command_data = {
-                            "intent": "CLARIFICATION_NEEDED",
-                            "confidence": response.confidence,
-                            "slots": {
-                                "ambiguous_item": item.ambiguous_item,
-                                "suggested_options": item.suggested_options,
-                                "clarification_question": item.clarification_question
-                            }
+            if not extraction_response.success:
+                logger.warning("Item extraction failed")
+                return ParserResult.error_result("Failed to extract items from user input")
+            
+            # Step 2: Resolve items against menu using Menu Resolution Agent
+            resolution_context = {
+                "service_factory": context.get("service_factory"),
+                "shared_db_session": context.get("shared_db_session"),
+                "restaurant_id": context.get("restaurant_id")
+            }
+            
+            resolution_response = await menu_resolution_agent(extraction_response, resolution_context)
+            
+            if not resolution_response.success:
+                logger.warning("Menu resolution failed")
+                return ParserResult.error_result("Failed to resolve items against menu")
+            
+            # Step 3: Convert resolved items to commands
+            commands = []
+            
+            for resolved_item in resolution_response.resolved_items:
+                if resolved_item.menu_item_id == 0 and not resolved_item.is_ambiguous:
+                    # Item not found - create ITEM_UNAVAILABLE command
+                    command_data = {
+                        "intent": "ITEM_UNAVAILABLE",
+                        "confidence": resolution_response.confidence,
+                        "slots": {
+                            "requested_item": resolved_item.item_name,
+                            "message": f"Sorry, we don't have {resolved_item.item_name} on our menu"
                         }
-                    else:
-                        # Clear item - create ADD_ITEM command
-                        command_data = {
-                            "intent": "ADD_ITEM",
-                            "confidence": response.confidence,
-                            "slots": {
-                                "menu_item_id": item.menu_item_id,
-                                "quantity": item.quantity,
-                                "size": item.size,
-                                "modifiers": item.modifiers,
-                                "special_instructions": item.special_instructions
-                            }
+                    }
+                elif resolved_item.is_ambiguous or resolved_item.menu_item_id == 0:
+                    # Ambiguous item - create CLARIFICATION_NEEDED command
+                    command_data = {
+                        "intent": "CLARIFICATION_NEEDED",
+                        "confidence": resolution_response.confidence,
+                        "slots": {
+                            "ambiguous_item": resolved_item.item_name,
+                            "suggested_options": resolved_item.suggested_options,
+                            "clarification_question": resolved_item.clarification_question
                         }
-                    
-                    # Validate the command structure
-                    from app.commands.command_data_validator import CommandDataValidator
-                    is_valid, errors = CommandDataValidator.validate(command_data)
-                    
-                    if is_valid:
-                        commands.append(command_data)
-                        logger.info(f"Valid command created: {command_data['intent']}")
-                    else:
-                        logger.warning(f"Invalid command structure: {errors}")
-                
-                if commands:
-                    logger.info(f"ADD_ITEM parser created {len(commands)} valid commands")
-                    # Return all commands
-                    return ParserResult.success_result(commands)
+                    }
                 else:
-                    logger.warning("No valid commands could be created from agent response")
-                    return ParserResult.error_result("No valid commands generated from agent response")
+                    # Clear item - create ADD_ITEM command
+                    command_data = {
+                        "intent": "ADD_ITEM",
+                        "confidence": resolution_response.confidence,
+                        "slots": {
+                            "menu_item_id": resolved_item.menu_item_id,
+                            "quantity": resolved_item.quantity,
+                            "size": resolved_item.size,
+                            "modifiers": resolved_item.modifiers,
+                            "special_instructions": resolved_item.special_instructions
+                        }
+                    }
+                
+                # Validate the command structure
+                from app.commands.command_data_validator import CommandDataValidator
+                is_valid, errors = CommandDataValidator.validate(command_data)
+                
+                if is_valid:
+                    commands.append(command_data)
+                    logger.info(f"Valid command created: {command_data['intent']}")
+                else:
+                    logger.warning(f"Invalid command structure: {errors}")
+            
+            if commands:
+                logger.info(f"ADD_ITEM parser created {len(commands)} valid commands")
+                return ParserResult.success_result(commands)
             else:
-                logger.warning("ADD_ITEM agent returned no structured response")
-                return ParserResult.error_result("No structured response from ADD_ITEM agent")
+                logger.warning("No valid commands could be created from agent responses")
+                return ParserResult.error_result("No valid commands generated from agent responses")
             
         except Exception as e:
             logger.error(f"ADD_ITEM parser failed: {e}")
             return ParserResult.error_result(f"ADD_ITEM parsing failed: {str(e)}")
-    
-    async def _extract_customizations(self, user_input: str, context: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Extract customization information from user input
-        
-        TODO: Use LLM to extract:
-        - Ingredient modifications (add/remove/substitute)
-        - Cooking preferences (temperature, doneness)
-        - Special instructions
-        - Allergen considerations
-        """
-        # TODO: Implement customization extraction
-        pass
-    
-    async def _resolve_menu_item(self, user_input: str, context: Dict[str, Any]) -> int:
-        """
-        Resolve menu item reference to menu_item_id
-        
-        TODO: Use LLM to resolve:
-        - Ambiguous references ("that burger", "the special")
-        - Partial names ("big mac", "quarter pounder")
-        - Descriptions ("the one with bacon")
-        """
-        # TODO: Implement menu item resolution
-        pass
-    
-    async def _extract_quantity(self, user_input: str, context: Dict[str, Any]) -> int:
-        """
-        Extract quantity from user input
-        
-        TODO: Use LLM to extract:
-        - Explicit numbers ("two burgers")
-        - Implicit quantities ("a burger" = 1)
-        - Complex expressions ("a couple of", "a few")
-        """
-        # TODO: Implement quantity extraction
-        pass

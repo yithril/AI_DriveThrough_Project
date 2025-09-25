@@ -13,6 +13,7 @@ from .confirm_order_command import ConfirmOrderCommand
 from .question_command import QuestionCommand
 from .unknown_command import UnknownCommand
 from .clarification_needed_command import ClarificationNeededCommand
+from .item_unavailable_command import ItemUnavailableCommand
 
 
 class CommandFactory:
@@ -29,6 +30,7 @@ class CommandFactory:
         "QUESTION": QuestionCommand,
         "UNKNOWN": UnknownCommand,
         "CLARIFICATION_NEEDED": ClarificationNeededCommand,
+        "ITEM_UNAVAILABLE": ItemUnavailableCommand,
         # These intents are kept but don't create commands (handled elsewhere):
         # "MODIFY_ITEM": Handled as RemoveItemCommand + AddItemCommand
         # "SET_QUANTITY": Handled as RemoveItemCommand + AddItemCommand  

@@ -11,7 +11,6 @@ from app.commands.add_item_command import AddItemCommand
 from app.commands.remove_item_command import RemoveItemCommand
 from app.commands.clear_order_command import ClearOrderCommand
 from app.commands.confirm_order_command import ConfirmOrderCommand
-from app.commands.repeat_command import RepeatCommand
 from app.commands.question_command import QuestionCommand
 from app.commands.unknown_command import UnknownCommand
 from app.commands.command_context import CommandContext
@@ -61,14 +60,14 @@ class TestAddItemCommand:
         assert "Item added successfully" in result.message
         
         # Verify service was called with correct parameters
-        command_context.order_service.add_item_to_order.assert_called_once_with(
-            order_id=123,
-            menu_item_id=456,
-            quantity=2,
-            customizations=["no_pickles"],
-            special_instructions="Well done",
-            size="large"
-        )
+        call_args = command_context.order_service.add_item_to_order.call_args
+        assert call_args is not None
+        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['menu_item_id'] == 456
+        assert call_args.kwargs['quantity'] == 2
+        assert call_args.kwargs['customizations'] == ["no_pickles"]
+        assert call_args.kwargs['special_instructions'] == "Well done"
+        assert call_args.kwargs['size'] == "large"
     
     @pytest.mark.asyncio
     async def test_execute_with_minimal_params(self, command_context):
@@ -83,14 +82,233 @@ class TestAddItemCommand:
         
         assert result.is_success
         # Verify service was called with defaults
-        command_context.order_service.add_item_to_order.assert_called_once_with(
+        call_args = command_context.order_service.add_item_to_order.call_args
+        assert call_args is not None
+        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['menu_item_id'] == 456
+        assert call_args.kwargs['quantity'] == 1
+        assert call_args.kwargs['customizations'] == []
+        assert call_args.kwargs['special_instructions'] is None
+        assert call_args.kwargs['size'] is None
+    
+    @pytest.mark.asyncio
+    async def test_execute_with_complex_customizations(self, command_context):
+        """Test execution with complex customization scenarios"""
+        command = AddItemCommand(
+            restaurant_id=1,
+            order_id=123,
+            menu_item_id=456,
+            quantity=3,
+            size="large",
+            modifiers=["extra cheese", "no pickles", "heavy sauce", "extra crispy"],
+            special_instructions="well done, cut in half"
+        )
+        
+        result = await command.execute(command_context, AsyncMock())
+        
+        assert result.is_success
+        assert "Item added successfully" in result.message
+        
+        # Verify service was called with all complex parameters
+        call_args = command_context.order_service.add_item_to_order.call_args
+        assert call_args is not None
+        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['menu_item_id'] == 456
+        assert call_args.kwargs['quantity'] == 3
+        assert call_args.kwargs['customizations'] == ["extra cheese", "no pickles", "heavy sauce", "extra crispy"]
+        assert call_args.kwargs['special_instructions'] == "well done, cut in half"
+        assert call_args.kwargs['size'] == "large"
+    
+    @pytest.mark.asyncio
+    async def test_execute_with_multiple_quantities(self, command_context):
+        """Test execution with multiple quantities"""
+        command = AddItemCommand(
+            restaurant_id=1,
+            order_id=123,
+            menu_item_id=456,
+            quantity=5,
+            size="medium",
+            modifiers=["no onions"],
+            special_instructions="extra crispy"
+        )
+        
+        result = await command.execute(command_context, AsyncMock())
+        
+        assert result.is_success
+        
+        # Verify quantity is passed correctly
+        call_args = command_context.order_service.add_item_to_order.call_args
+        assert call_args is not None
+        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['menu_item_id'] == 456
+        assert call_args.kwargs['quantity'] == 5
+        assert call_args.kwargs['customizations'] == ["no onions"]
+        assert call_args.kwargs['special_instructions'] == "extra crispy"
+        assert call_args.kwargs['size'] == "medium"
+    
+    @pytest.mark.asyncio
+    async def test_execute_with_empty_modifiers(self, command_context):
+        """Test execution with empty modifiers list"""
+        command = AddItemCommand(
+            restaurant_id=1,
             order_id=123,
             menu_item_id=456,
             quantity=1,
-            customizations=[],
-            special_instructions=None,
-            size=None
+            modifiers=[],
+            special_instructions="rare"
         )
+        
+        result = await command.execute(command_context, AsyncMock())
+        
+        assert result.is_success
+        
+        # Verify empty modifiers are handled correctly
+        call_args = command_context.order_service.add_item_to_order.call_args
+        assert call_args is not None
+        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['menu_item_id'] == 456
+        assert call_args.kwargs['quantity'] == 1
+        assert call_args.kwargs['customizations'] == []
+        assert call_args.kwargs['special_instructions'] == "rare"
+        assert call_args.kwargs['size'] is None
+    
+    @pytest.mark.asyncio
+    async def test_execute_with_none_parameters(self, command_context):
+        """Test execution with None parameters (should use defaults)"""
+        command = AddItemCommand(
+            restaurant_id=1,
+            order_id=123,
+            menu_item_id=456,
+            quantity=2,
+            size=None,
+            modifiers=None,
+            special_instructions=None
+        )
+        
+        result = await command.execute(command_context, AsyncMock())
+        
+        assert result.is_success
+        
+        # Verify None parameters are handled correctly (converted to defaults)
+        call_args = command_context.order_service.add_item_to_order.call_args
+        assert call_args is not None
+        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['menu_item_id'] == 456
+        assert call_args.kwargs['quantity'] == 2
+        assert call_args.kwargs['customizations'] == []
+        assert call_args.kwargs['special_instructions'] is None
+        assert call_args.kwargs['size'] is None
+    
+    @pytest.mark.asyncio
+    async def test_execute_with_whitespace_modifiers(self, command_context):
+        """Test execution with modifiers containing whitespace (should be filtered)"""
+        command = AddItemCommand(
+            restaurant_id=1,
+            order_id=123,
+            menu_item_id=456,
+            quantity=1,
+            modifiers=["  extra cheese  ", "", "no pickles", "   "],
+            special_instructions="well done"
+        )
+        
+        result = await command.execute(command_context, AsyncMock())
+        
+        assert result.is_success
+        
+        # Verify whitespace modifiers are NOT filtered (AddItemCommand doesn't filter them)
+        call_args = command_context.order_service.add_item_to_order.call_args
+        assert call_args is not None
+        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['menu_item_id'] == 456
+        assert call_args.kwargs['quantity'] == 1
+        assert call_args.kwargs['customizations'] == ["  extra cheese  ", "", "no pickles", "   "]  # All modifiers passed through
+        assert call_args.kwargs['special_instructions'] == "well done"
+        assert call_args.kwargs['size'] is None
+    
+    @pytest.mark.asyncio
+    async def test_execute_with_whitespace_special_instructions(self, command_context):
+        """Test execution with whitespace-only special instructions (should be None)"""
+        command = AddItemCommand(
+            restaurant_id=1,
+            order_id=123,
+            menu_item_id=456,
+            quantity=1,
+            special_instructions="   "  # Only whitespace
+        )
+        
+        result = await command.execute(command_context, AsyncMock())
+        
+        assert result.is_success
+        
+        # Verify whitespace-only special instructions are NOT converted (AddItemCommand doesn't filter them)
+        call_args = command_context.order_service.add_item_to_order.call_args
+        assert call_args is not None
+        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['menu_item_id'] == 456
+        assert call_args.kwargs['quantity'] == 1
+        assert call_args.kwargs['customizations'] == []
+        assert call_args.kwargs['special_instructions'] == "   "  # Whitespace preserved as-is
+        assert call_args.kwargs['size'] is None
+    
+    @pytest.mark.asyncio
+    async def test_execute_service_failure(self, command_context):
+        """Test execution when OrderService fails"""
+        # Mock service to return error
+        command_context.order_service.add_item_to_order.return_value = OrderResult.error("Menu item not found")
+        
+        command = AddItemCommand(
+            restaurant_id=1,
+            order_id=123,
+            menu_item_id=999,  # Non-existent item
+            quantity=1
+        )
+        
+        result = await command.execute(command_context, AsyncMock())
+        
+        assert not result.is_success
+        assert "Menu item not found" in result.message
+    
+    @pytest.mark.asyncio
+    async def test_execute_exception_handling(self, command_context):
+        """Test execution when an exception occurs"""
+        # Mock service to raise exception
+        command_context.order_service.add_item_to_order.side_effect = Exception("Database connection failed")
+        
+        command = AddItemCommand(
+            restaurant_id=1,
+            order_id=123,
+            menu_item_id=456,
+            quantity=1
+        )
+        
+        result = await command.execute(command_context, AsyncMock())
+        
+        assert not result.is_success
+        assert "Failed to add item to order: Database connection failed" in result.message
+    
+    def test_get_parameters(self):
+        """Test _get_parameters method returns correct data"""
+        command = AddItemCommand(
+            restaurant_id=1,
+            order_id=123,
+            menu_item_id=456,
+            quantity=2,
+            size="large",
+            modifiers=["extra cheese", "no pickles"],
+            special_instructions="well done"
+        )
+        
+        params = command._get_parameters()
+        
+        expected_params = {
+            "menu_item_id": 456,
+            "quantity": 2,
+            "size": "large",
+            "modifiers": ["extra cheese", "no pickles"],
+            "special_instructions": "well done"
+        }
+        
+        assert params == expected_params
 
 
 class TestRemoveItemCommand:

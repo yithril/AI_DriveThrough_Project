@@ -231,9 +231,44 @@ class MockOrderService:
     
     async def add_item_to_order(self, db, order_id: str, menu_item_id: int, quantity: int, 
                                customizations=None, special_instructions=None, size=None):
-        """Mock add item to order - always returns success for testing"""
+        """Mock add item to order - behaves like real OrderService"""
         from app.dto.order_result import OrderResult
-        return OrderResult.success("Item added successfully")
+        
+        # Simulate real service behavior: return error for non-existent items
+        if menu_item_id == 999:  # Non-existent item
+            return OrderResult.error(f"Menu item {menu_item_id} not found or not available")
+        
+        if menu_item_id == 3:  # Unavailable item
+            return OrderResult.error(f"Menu item {menu_item_id} not found or not available")
+        
+        # Create realistic order item data
+        order_item = {
+            "id": f"item_{menu_item_id}_{quantity}",
+            "menu_item_id": menu_item_id,
+            "menu_item": {
+                "id": menu_item_id,
+                "name": "Test Burger",
+                "price": 8.99,
+                "restaurant_id": 1
+            },
+            "quantity": quantity,
+            "unit_price": 8.99,
+            "extra_cost": 0.0,  # Will be calculated by real service
+            "total_price": 8.99 * quantity,
+            "customizations": customizations or [],
+            "special_instructions": special_instructions,
+            "size": size,
+            "created_at": "2024-01-01T00:00:00Z"
+        }
+        
+        # Generate comprehensive message like real service
+        item_name = "Test Burger"
+        size_text = f" {size}" if size and size.lower() not in item_name.lower() else ""
+        customizations_text = f" ({', '.join(customizations)})" if customizations else ""
+        special_text = f" - {special_instructions}" if special_instructions else ""
+        message = f"Added {quantity}x {item_name}{size_text}{customizations_text} to order{special_text}"
+        
+        return OrderResult.success(message, data={"order_item": order_item})
 
 
 class MockContainer:

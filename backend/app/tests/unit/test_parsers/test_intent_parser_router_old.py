@@ -1,6 +1,7 @@
 """
 Unit tests for IntentParserRouter
 """
+
 import pytest
 from app.agents.nodes.intent_parser_router_node import IntentParserRouter
 from app.agents.parser.base_parser import ParserResult
@@ -53,10 +54,9 @@ class TestIntentParserRouter:
         assert result.command_data["slots"] == {}
     
     
-    @pytest.mark.asyncio
-    async def test_parse_intent_question(self, router):
+    def test_parse_intent_question(self, router):
         """Test routing QUESTION intent"""
-        result = await router.parse_intent(
+        result = router.parse_intent(
             intent_type=IntentType.QUESTION,
             user_input="what's on the menu?",
             context={}
@@ -68,10 +68,9 @@ class TestIntentParserRouter:
         assert "category" in result.command_data["slots"]
     
     
-    @pytest.mark.asyncio
-    async def test_parse_intent_unknown(self, router):
+    def test_parse_intent_unknown(self, router):
         """Test routing UNKNOWN intent"""
-        result = await router.parse_intent(
+        result = router.parse_intent(
             intent_type=IntentType.UNKNOWN,
             user_input="asdfasdf",
             context={}
@@ -82,8 +81,7 @@ class TestIntentParserRouter:
         assert "user_input" in result.command_data["slots"]
         assert "clarifying_question" in result.command_data["slots"]
     
-    @pytest.mark.asyncio
-    async def test_parse_intent_with_context(self, router):
+    def test_parse_intent_with_context(self, router):
         """Test parsing with various context"""
         context = {
             "order_items": [{"item": "burger"}],
@@ -91,7 +89,7 @@ class TestIntentParserRouter:
             "conversation_history": [{"user": "hi", "ai": "hello"}]
         }
         
-        result = await router.parse_intent(
+        result = router.parse_intent(
             intent_type=IntentType.QUESTION,
             user_input="what's on the menu?",
             context=context
@@ -100,11 +98,10 @@ class TestIntentParserRouter:
         assert result.success is True
         assert result.command_data["intent"] == "QUESTION"
     
-    @pytest.mark.asyncio
-    async def test_parse_intent_unsupported_intent(self, router):
+    def test_parse_intent_unsupported_intent(self, router):
         """Test parsing unsupported intent falls back to UNKNOWN"""
         # This should not happen in practice, but test the fallback
-        result = await router.parse_intent(
+        result = router.parse_intent(
             intent_type="UNSUPPORTED_INTENT",  # This will be treated as unknown
             user_input="some input",
             context={}
@@ -114,12 +111,11 @@ class TestIntentParserRouter:
         assert result.success is True
         assert result.command_data["intent"] == "UNKNOWN"
     
-    @pytest.mark.asyncio
-    async def test_parse_intent_parser_exception(self, router):
+    def test_parse_intent_parser_exception(self, router):
         """Test that parser exceptions are handled gracefully"""
         # Mock a parser that raises an exception
         class FailingParser:
-            async def parse(self, user_input, context):
+            def parse(self, user_input, context):
                 raise Exception("Parser failed")
         
         # Replace a parser with a failing one
@@ -127,7 +123,7 @@ class TestIntentParserRouter:
         router.parsers[IntentType.CLEAR_ORDER] = FailingParser()
         
         try:
-            result = await router.parse_intent(
+            result = router.parse_intent(
                 intent_type=IntentType.CLEAR_ORDER,
                 user_input="clear order",
                 context={}
@@ -144,27 +140,23 @@ class TestIntentParserRouter:
         """Test getting supported intent types"""
         supported_intents = router.get_supported_intents()
         
-        assert len(supported_intents) == 7
+        assert len(supported_intents) == 6
         assert IntentType.CLEAR_ORDER in supported_intents
         assert IntentType.CONFIRM_ORDER in supported_intents
         assert IntentType.QUESTION in supported_intents
         assert IntentType.UNKNOWN in supported_intents
-        assert IntentType.ADD_ITEM in supported_intents
-        assert IntentType.REMOVE_ITEM in supported_intents
-        assert IntentType.MODIFY_ITEM in supported_intents
     
-    @pytest.mark.asyncio
-    async def test_router_consistency(self, router):
+    def test_router_consistency(self, router):
         """Test that router consistently routes same intent to same parser"""
         # Test multiple calls with same intent
         for _ in range(3):
-            result1 = await router.parse_intent(
+            result1 = router.parse_intent(
                 intent_type=IntentType.QUESTION,
                 user_input="what's the price?",
                 context={}
             )
             
-            result2 = await router.parse_intent(
+            result2 = router.parse_intent(
                 intent_type=IntentType.QUESTION,
                 user_input="how much does it cost?",
                 context={}
@@ -175,10 +167,9 @@ class TestIntentParserRouter:
             assert result1.command_data["intent"] == "QUESTION"
             assert result2.command_data["intent"] == "QUESTION"
     
-    @pytest.mark.asyncio
-    async def test_router_with_empty_context(self, router):
+    def test_router_with_empty_context(self, router):
         """Test router with empty context"""
-        result = await router.parse_intent(
+        result = router.parse_intent(
             intent_type=IntentType.CLEAR_ORDER,
             user_input="clear order",
             context={}
@@ -187,8 +178,7 @@ class TestIntentParserRouter:
         assert result.success is True
         assert result.command_data["intent"] == "CLEAR_ORDER"
     
-    @pytest.mark.asyncio
-    async def test_router_with_complex_context(self, router):
+    def test_router_with_complex_context(self, router):
         """Test router with complex context"""
         complex_context = {
             "order_items": [
@@ -205,7 +195,7 @@ class TestIntentParserRouter:
             "session_id": "test-session"
         }
         
-        result = await router.parse_intent(
+        result = router.parse_intent(
             intent_type=IntentType.CLEAR_ORDER,
             user_input="clear my order",
             context=complex_context

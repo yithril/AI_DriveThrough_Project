@@ -376,13 +376,13 @@ class TestCommandExecutorRouting:
         result = should_continue_after_command_executor(state_with_failed_batch)
         assert result == "follow_up_agent"
 
-    def test_route_to_response_router_on_stop(self, state_with_successful_batch):
-        """Test routing to response_router when batch outcome indicates completion"""
+    def test_route_to_final_response_aggregator_on_stop(self, state_with_successful_batch):
+        """Test routing to final_response_aggregator when batch outcome indicates completion"""
         # Set the batch outcome to indicate completion
         state_with_successful_batch.command_batch_result.batch_outcome = "ALL_SUCCESS"
         
         result = should_continue_after_command_executor(state_with_successful_batch)
-        assert result == "response_router"
+        assert result == "final_response_aggregator"
 
     def test_route_to_follow_up_agent_on_failures(self, state_with_failed_batch):
         """Test routing to follow_up_agent when commands have failures"""
@@ -392,7 +392,7 @@ class TestCommandExecutorRouting:
     def test_route_to_dynamic_voice_response_on_success(self, state_with_successful_batch):
         """Test routing to dynamic_voice_response when all commands succeed"""
         result = should_continue_after_command_executor(state_with_successful_batch)
-        assert result == "response_router"
+        assert result == "final_response_aggregator"
 
     def test_route_to_follow_up_agent_on_validation_errors(self):
         """Test routing to follow_up_agent when there are validation errors"""
@@ -431,7 +431,7 @@ class TestCommandExecutorRouting:
         )
         
         result = should_continue_after_command_executor(state)
-        assert result == "response_router"
+        assert result == "final_response_aggregator"
 
 
 class TestCommandExecutorIntegration:

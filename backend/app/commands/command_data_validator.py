@@ -7,7 +7,7 @@ before it's passed to the CommandFactory.
 
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
-from app.commands.intent_classification_schema import IntentType
+from app.commands.command_type_schema import CommandType
 
 
 @dataclass
@@ -66,7 +66,7 @@ class CommandDataValidator:
                     message="Intent must be a string",
                     value=type(data["intent"]).__name__
                 ))
-            elif data["intent"] not in [intent.value for intent in IntentType]:
+            elif data["intent"] not in [command.value for command in CommandType]:
                 errors.append(ValidationError(
                     field="intent",
                     message=f"Invalid intent: {data['intent']}",
@@ -122,7 +122,7 @@ class CommandDataValidator:
         return len(errors) == 0, errors
     
     @classmethod
-    def validate_for_intent(cls, data: Dict[str, Any], expected_intent: IntentType) -> tuple[bool, List[ValidationError]]:
+    def validate_for_intent(cls, data: Dict[str, Any], expected_intent: CommandType) -> tuple[bool, List[ValidationError]]:
         """
         Validate command data for a specific intent.
         

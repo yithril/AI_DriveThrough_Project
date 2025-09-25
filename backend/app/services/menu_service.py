@@ -43,6 +43,37 @@ class MenuService:
             # Log error but return empty list to prevent agent failures
             return []
     
+    async def search_menu_items(self, restaurant_id: int, query: str) -> List[str]:
+        """
+        Search for menu items using flexible keyword matching.
+        
+        Args:
+            restaurant_id: Restaurant ID
+            query: Search query
+            
+        Returns:
+            List of matching menu item names
+        """
+        try:
+            async with UnitOfWork(self.db) as uow:
+                menu_items = await uow.menu_items.get_by_restaurant(restaurant_id)
+                available_items = [item.name for item in menu_items if item.is_available]
+                
+                # Flexible keyword matching
+                query_words = query.lower().split()
+                matching_items = []
+                
+                for item in available_items:
+                    item_lower = item.lower()
+                    # Check if any query word is contained in the item name
+                    if any(query_word in item_lower for query_word in query_words):
+                        matching_items.append(item)
+                
+                return matching_items
+        except Exception as e:
+            # Log error but return empty list to prevent agent failures
+            return []
+    
     async def get_restaurant_name(self, restaurant_id: int) -> str:
         """
         Get restaurant name by ID.

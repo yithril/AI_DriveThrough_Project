@@ -31,7 +31,8 @@ USER INPUT: "{user_input}"
 REQUIRED JSON FORMAT:
 {{
   "intent": "INTENT_TYPE",
-  "confidence": 0.95
+  "confidence": 0.95,
+  "cleansed_input": "cleaned version of user input"
 }}
 
 INTENT TYPES:
@@ -47,12 +48,12 @@ INTENT TYPES:
 - UNKNOWN: Unclear or ambiguous intent
 
 EXAMPLES:
-"I'd like a Big Mac and fries" → {{"intent": "ADD_ITEM", "confidence": 0.95}}
-"Remove my fries" → {{"intent": "REMOVE_ITEM", "confidence": 0.9}}
-"That's all" → {{"intent": "CONFIRM_ORDER", "confidence": 0.95}}
-"How much is a burger?" → {{"intent": "QUESTION", "confidence": 0.9}}
-"Thank you" → {{"intent": "SMALL_TALK", "confidence": 0.95}}
-"Can you repeat that?" → {{"intent": "REPEAT", "confidence": 0.85}}
+"I'd like a Big Mac and fries" → {{"intent": "ADD_ITEM", "confidence": 0.95, "cleansed_input": "I'd like a Big Mac and fries"}}
+"Remove my fries" → {{"intent": "REMOVE_ITEM", "confidence": 0.9, "cleansed_input": "Remove my fries"}}
+"That's all" → {{"intent": "CONFIRM_ORDER", "confidence": 0.95, "cleansed_input": "That's all"}}
+"How much is a burger?" → {{"intent": "QUESTION", "confidence": 0.9, "cleansed_input": "How much is a burger?"}}
+"Thank you" → {{"intent": "SMALL_TALK", "confidence": 0.95, "cleansed_input": "Thank you"}}
+"Can you repeat that?" → {{"intent": "REPEAT", "confidence": 0.85, "cleansed_input": "Can you repeat that?"}}
 
 EDGE CASE GUIDANCE:
 - "Cancel my fries" → REMOVE_ITEM (not CLEAR_ORDER)
@@ -66,6 +67,16 @@ NOISE FILTERING:
 Ignore non-food-related speech and focus only on ordering intent.
 Example: "I'd like two burgers... Shawn stop hitting your sister... with no pickles"
 → Focus on: "I'd like two burgers with no pickles"
+
+CLEANSED INPUT GUIDELINES:
+- Remove background chatter, unrelated speech, and conversational noise
+- Preserve ALL food-related information: items, quantities, modifiers, sizes
+- Keep the natural flow and meaning of the order
+- If input is already clean, return it unchanged
+- Examples:
+  * "I'd like a burger... um... with no pickles" → "I'd like a burger with no pickles"
+  * "Two Big Macs please... wait, make that three" → "Three Big Macs please"
+  * "Can I get fries? Thanks!" → "Can I get fries?"
 
 
 CONFIDENCE SCORING:

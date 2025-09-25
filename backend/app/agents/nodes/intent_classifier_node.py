@@ -59,6 +59,7 @@ async def intent_classifier_node(state: ConversationWorkflowState) -> Conversati
         print(f"\n🔍 DEBUG - SIMPLIFIED AI RESPONSE:")
         print(f"   Intent: {result.intent}")
         print(f"   Confidence: {result.confidence}")
+        print(f"   Cleansed Input: {result.cleansed_input}")
         print(f"   Result type: {type(result)}")
         
         # Populate state with results
@@ -66,12 +67,11 @@ async def intent_classifier_node(state: ConversationWorkflowState) -> Conversati
         state.intent_confidence = result.confidence
         # No more slots - the original text is preserved in state.user_input
         
-        # TODO: Implement input normalization logic here
-        # For now, just copy the original input as a stopgap
-        state.normalized_user_input = state.user_input
-
+        # Use the LLM's cleansed input for normalized_user_input
+        state.normalized_user_input = result.cleansed_input
         
         logger.info(f"Intent classified: {result.intent} (confidence: {result.confidence})")
+        logger.info(f"Input cleansed: '{state.user_input}' → '{state.normalized_user_input}'")
         
     except Exception as e:
         logger.error(f"Intent classification failed: {e}")
@@ -80,8 +80,9 @@ async def intent_classifier_node(state: ConversationWorkflowState) -> Conversati
         state.intent_confidence = 0.1
         state.intent_slots = {}
         state.response_phrase_type = AudioPhraseType.DIDNT_UNDERSTAND
-        # Set normalized input as fallback
+        # Set normalized input as fallback (use original input when cleansing fails)
         state.normalized_user_input = state.user_input
+        logger.warning(f"Using original input as fallback: '{state.normalized_user_input}'")
     
     # Final check for low confidence intents (covers both LLM low confidence and parse errors)
     if state.intent_confidence < 0.8:

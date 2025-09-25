@@ -47,8 +47,7 @@ class TestWorkflowOrchestration:
             "state_transition", 
             "intent_parser_router",
             "command_executor",
-            "response_router",
-            "clarification_agent",
+            "final_response_aggregator",
             "voice_generation"
         ]
         
@@ -104,8 +103,8 @@ class TestWorkflowOrchestration:
         assert next_node == "command_executor"
 
     @pytest.mark.asyncio
-    async def test_command_executor_to_response_router_routing(self, workflow):
-        """Test routing from command_executor to response_router on success"""
+    async def test_command_executor_to_final_response_aggregator_routing(self, workflow):
+        """Test routing from command_executor to final_response_aggregator on success"""
         from app.agents.nodes import should_continue_after_command_executor
         
         # State with successful command execution
@@ -114,11 +113,11 @@ class TestWorkflowOrchestration:
                 .build())
         
         next_node = should_continue_after_command_executor(state)
-        assert next_node == "response_router"
+        assert next_node == "final_response_aggregator"
 
     @pytest.mark.asyncio
-    async def test_command_executor_to_clarification_agent_routing(self, workflow):
-        """Test routing from command_executor to clarification_agent on failure"""
+    async def test_command_executor_to_final_response_aggregator_routing_failure(self, workflow):
+        """Test routing from command_executor to final_response_aggregator on failure"""
         from app.agents.nodes import should_continue_after_command_executor
         
         # State with failed command execution
@@ -127,49 +126,19 @@ class TestWorkflowOrchestration:
                 .build())
         
         next_node = should_continue_after_command_executor(state)
-        assert next_node == "clarification_agent"
+        assert next_node == "final_response_aggregator"
 
     @pytest.mark.asyncio
-    async def test_response_router_to_voice_generation_routing(self, workflow):
-        """Test routing from response_router to voice_generation on success"""
-        from app.agents.nodes import should_continue_after_response_router
-        
-        # State with successful batch result
-        state = (ConversationWorkflowStateBuilder()
-                .with_command_batch_result(create_successful_command_batch_result())
-                .build())
-        
-        next_node = should_continue_after_response_router(state)
-        assert next_node == "voice_generation"
-
-    @pytest.mark.asyncio
-    async def test_response_router_to_clarification_agent_routing(self, workflow):
-        """Test routing from response_router to clarification_agent on failure"""
-        from app.agents.nodes import response_router_node, should_continue_after_response_router
-        
-        # State with failed batch result
-        state = (ConversationWorkflowStateBuilder()
-                .with_command_batch_result(create_failed_command_batch_result())
-                .build())
-        
-        # First call the response router node to set next_node
-        state = await response_router_node(state)
-        
-        # Then check the routing
-        next_node = should_continue_after_response_router(state)
-        assert next_node == "clarification_agent"
-
-    @pytest.mark.asyncio
-    async def test_clarification_agent_to_voice_generation_routing(self, workflow):
-        """Test routing from clarification_agent to voice_generation"""
-        from app.agents.nodes import should_continue_after_clarification_agent
+    async def test_final_response_aggregator_to_voice_generation_routing(self, workflow):
+        """Test routing from final_response_aggregator to voice_generation"""
+        from app.agents.nodes import should_continue_after_final_response_aggregator
         
         # Any state should route to voice_generation
         state = (ConversationWorkflowStateBuilder()
-                .with_response("Clarification response")
+                .with_response("Final response")
                 .build())
         
-        next_node = should_continue_after_clarification_agent(state)
+        next_node = should_continue_after_final_response_aggregator(state)
         assert next_node == "voice_generation"
 
     @pytest.mark.asyncio
@@ -199,8 +168,7 @@ class TestWorkflowOrchestration:
         assert "state_transition" in graph_info["nodes"]
         assert "intent_parser_router" in graph_info["nodes"]
         assert "command_executor" in graph_info["nodes"]
-        assert "response_router" in graph_info["nodes"]
-        assert "clarification_agent" in graph_info["nodes"]
+        assert "final_response_aggregator" in graph_info["nodes"]
         assert "voice_generation" in graph_info["nodes"]
 
 

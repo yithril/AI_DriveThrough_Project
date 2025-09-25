@@ -18,10 +18,8 @@ from app.agents.nodes import (
     should_continue_after_state_transition,
     command_executor_node,
     should_continue_after_command_executor,
-    response_router_node,
-    should_continue_after_response_router,
-    clarification_agent_node,
-    should_continue_after_clarification_agent,
+    final_response_aggregator_node,
+    should_continue_after_final_response_aggregator,
     voice_generation_node,
     should_continue_after_voice_generation,
 )
@@ -57,8 +55,7 @@ class ConversationWorkflow:
         workflow.add_node("state_transition", state_transition_node)
         workflow.add_node("intent_parser_router", intent_parser_router_node)
         workflow.add_node("command_executor", command_executor_node)
-        workflow.add_node("response_router", response_router_node)
-        workflow.add_node("clarification_agent", clarification_agent_node)
+        workflow.add_node("final_response_aggregator", final_response_aggregator_node)
         workflow.add_node("voice_generation", voice_generation_node)
         
         # Set the entry point
@@ -94,24 +91,14 @@ class ConversationWorkflow:
             "command_executor",
             should_continue_after_command_executor,
             {
-                "clarification_agent": "clarification_agent",
-                "response_router": "response_router"
-            }
-        )
-        
-        
-        workflow.add_conditional_edges(
-            "response_router",
-            should_continue_after_response_router,
-            {
-                "clarification_agent": "clarification_agent",
+                "final_response_aggregator": "final_response_aggregator",
                 "voice_generation": "voice_generation"
             }
         )
         
         workflow.add_conditional_edges(
-            "clarification_agent",
-            should_continue_after_clarification_agent,
+            "final_response_aggregator",
+            should_continue_after_final_response_aggregator,
             {
                 "voice_generation": "voice_generation"
             }
@@ -179,22 +166,18 @@ class ConversationWorkflow:
         return {
             "nodes": [
                 "intent_classifier",
-                "state_transition", 
+                "state_transition",
                 "intent_parser_router",
                 "command_executor",
-                "response_router",
-                "clarification_agent",
+                "final_response_aggregator",
                 "voice_generation",
             ],
             "edges": [
                 ("intent_classifier", "state_transition"),
                 ("state_transition", "intent_parser_router"),
                 ("intent_parser_router", "command_executor"),
-                ("command_executor", "clarification_agent"),
-                ("command_executor", "response_router"),
-                ("response_router", "clarification_agent"),
-                ("response_router", "voice_generation"),
-                ("clarification_agent", "voice_generation"),
+                ("command_executor", "final_response_aggregator"),
+                ("final_response_aggregator", "voice_generation"),
                 ("voice_generation", "END"),
             ],
             "entry_point": "intent_classifier",

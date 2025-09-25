@@ -60,7 +60,7 @@ class ConversationWorkflowState:
     # =============================================================================
     # RESPONSE ROUTER NODE (uses batch result, populates routing context)
     # =============================================================================
-    next_node: Optional[str] = None  # "canned_response", "follow_up_agent", "response_router"
+    next_node: Optional[str] = None  # "final_response_aggregator", "voice_generation"
     response_context: Dict[str, Any] = field(default_factory=dict)  # Context for next node
     
     # =============================================================================
