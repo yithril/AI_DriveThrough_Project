@@ -230,7 +230,7 @@ class MockOrderService:
         pass
     
     async def add_item_to_order(self, db, order_id: str, menu_item_id: int, quantity: int, 
-                               customizations=None, special_instructions=None, size=None):
+                               session_id: str, restaurant_id: int, customizations=None, special_instructions=None, size=None):
         """Mock add item to order - behaves like real OrderService"""
         from app.dto.order_result import OrderResult
         
@@ -269,6 +269,109 @@ class MockOrderService:
         message = f"Added {quantity}x {item_name}{size_text}{customizations_text} to order{special_text}"
         
         return OrderResult.success(message, data={"order_item": order_item})
+    
+    async def remove_item_from_order(self, db, order_id: str, order_item_id: str, session_id: str, restaurant_id: int):
+        """Mock remove item from order"""
+        from app.dto.order_result import OrderResult
+        return OrderResult.success("Removed Test Burger from order", data={"order": {"items": [{"id": "item_2", "name": "Test Fries"}]}})
+    
+    async def clear_order(self, db, order_id: str, session_id: str, restaurant_id: int):
+        """Mock clear order"""
+        from app.dto.order_result import OrderResult
+        return OrderResult.success("Cleared all 2 items from order", data={"order": {"items": [], "subtotal": 0.0, "total_amount": 0.0}})
+    
+    async def confirm_order(self, db, order_id: str, session_id: str, restaurant_id: int):
+        """Mock confirm order"""
+        from app.dto.order_result import OrderResult
+        return OrderResult.success("Order confirmed! 3 items", data={"order_confirmed": True, "order_status": "confirmed", "order": {"status": "CONFIRMED"}})
+    
+    async def get_order(self, db, order_id: int):
+        """Mock get order"""
+        from app.dto.order_result import OrderResult
+        return OrderResult.success("Order retrieved", data={
+            "order": {
+                "order_items": [
+                    {"menu_item_name": "Test Burger", "quantity": 1, "price": 9.99},
+                    {"menu_item_name": "Test Fries", "quantity": 1, "price": 4.99}
+                ],
+                "total_amount": 14.98
+            }
+        })
+    
+    async def update_order_item_quantity(self, db, order_id: str, order_item_id: str, quantity: int, session_id: str, restaurant_id: int):
+        """Mock update order item quantity"""
+        from app.dto.order_result import OrderResult
+        return OrderResult.success("Updated Test Burger quantity to 3", data={"updated_item": {"quantity": 3, "total_price": 29.97}})
+    
+    async def modify_order_item(self, db, order_id: str, order_item_id: str, changes: dict, session_id: str, restaurant_id: int):
+        """Mock modify order item"""
+        from app.dto.order_result import OrderResult
+        
+        # Handle multiple changes
+        messages = []
+        customizations = []
+        special_instructions = None
+        
+        if "remove_modifier" in changes:
+            modifier = changes["remove_modifier"]
+            if modifier == "onions":
+                messages.append("removed onions")
+                customizations = ["lettuce", "tomato"]  # Keep other items
+            else:
+                messages.append(f"removed {modifier}")
+                customizations = []
+        
+        if "add_modifier" in changes:
+            modifier = changes["add_modifier"]
+            if modifier == "extra cheese":
+                messages.append("added extra cheese")
+                customizations.append("extra cheese")
+            elif modifier == "cheese":
+                messages.append("added cheese")
+                customizations.append("cheese")
+            else:
+                messages.append(f"added {modifier}")
+                customizations.append(modifier)
+        
+        if "set_special_instructions" in changes:
+            messages.append("special instructions to: Well done please")
+            special_instructions = "Well done please"
+        
+        if "clear_special_instructions" in changes:
+            messages.append("cleared special instructions")
+            special_instructions = None
+        
+        # Combine all messages
+        combined_message = " ".join(messages) if messages else "Order item modified successfully"
+        
+        return OrderResult.success(combined_message, data={
+            "modified_item": {
+                "customizations": customizations,
+                "special_instructions": special_instructions
+            }
+        })
+    
+    # Add storage attribute for tests that need it
+    @property
+    def storage(self):
+        """Mock storage for tests that need it"""
+        return self
+    
+    async def create_order(self, db, order_data: dict):
+        """Mock create order"""
+        return True
+    
+    async def _recalculate_order_totals(self, order_data: dict):
+        """Mock recalculate order totals"""
+        order_data["subtotal"] = 24.97
+        order_data["tax_amount"] = 0.0
+        order_data["total_amount"] = 24.97
+    
+    async def _generate_order_item_id(self):
+        """Mock generate order item ID"""
+        import time
+        import random
+        return f"item_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
 
 
 class MockContainer:

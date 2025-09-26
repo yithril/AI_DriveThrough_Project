@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.container import Container
 from ..core.database import get_db
 from ..services.order_session_service import OrderSessionService
+from ..services.order_service import OrderService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 async def new_car(
     request_data: NewCarRequest,
     db: AsyncSession = Depends(get_db),
-    order_session_service: OrderSessionService = Depends(Provide[Container.order_session_service])
+    order_service: OrderService = Depends(Provide[Container.order_service])
 ):
     """
     Handle new car arriving (NEW_CAR event)
@@ -40,17 +41,6 @@ async def new_car(
     """
     try:
         logger.info(f"Received new car request: {request_data}")
-        
-        # Use OrderService.handle_new_car to create both session and order
-        from ..services.order_service import OrderService
-        from ..services.customization_validation_service import CustomizationValidationService
-        from ..core.service_factory import ServiceFactory
-        from ..core.container import Container
-        
-        # Create service factory and order service using the real container
-        container = Container()
-        service_factory = ServiceFactory(container)
-        order_service = service_factory.create_order_service(db)
         
         # Create both session and order using OrderService.handle_new_car
         order_result = await order_service.handle_new_car(
@@ -117,6 +107,7 @@ async def next_car(
 
 
 @router.get("/current")
+@inject
 async def get_current_session(
     order_session_service: OrderSessionService = Depends(Provide[Container.order_session_service])
 ):
@@ -136,11 +127,21 @@ async def get_current_session(
                 detail="No current session. Please call /new-car first to create a session."
             )
         
+        # Clean up session data for frontend (remove customer name but keep order_id)
+        clean_session = {
+            "id": current_session.get('id'),
+            "restaurant_id": current_session.get('restaurant_id'),
+            "order_id": current_session.get('order_id'),
+            "status": current_session.get('status'),
+            "created_at": current_session.get('created_at'),
+            "updated_at": current_session.get('updated_at')
+        }
+        
         return {
             "success": True,
             "message": "Current session retrieved",
             "data": {
-                "session": current_session
+                "session": clean_session
             }
         }
         
@@ -151,7 +152,82 @@ async def get_current_session(
         )
 
 
+@router.get("/current-order")
+@inject
+async def get_current_order(
+    order_session_service: OrderSessionService = Depends(Provide[Container.order_session_service]),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get current order with items for frontend display
+    
+    Returns:
+        dict: Current order data with items
+    """
+    try:
+        # Get current session
+        current_session = await order_session_service.get_current_session()
+        
+        if not current_session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No current session. Please call /new-car first to create a session."
+            )
+        
+        # Get the order ID from session
+        session_id = current_session.get('id')
+        order_id = current_session.get('order_id')
+        
+        if not session_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No session ID found in current session"
+            )
+        
+        if not order_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No order ID found in current session"
+            )
+        
+        # Get the order data using the order ID
+        order_data = await order_session_service.get_order(db, order_id)
+        
+        if not order_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No order found for current session"
+            )
+        
+        # Return clean order data for frontend
+        return {
+            "success": True,
+            "message": "Current order retrieved",
+            "data": {
+                "order": {
+                    "id": order_data.get('id'),
+                    "items": order_data.get('items', []),
+                    "subtotal": order_data.get('subtotal', 0.0),
+                    "tax_amount": order_data.get('tax_amount', 0.0),
+                    "total_amount": order_data.get('total_amount', 0.0),
+                    "status": order_data.get('status'),
+                    "created_at": order_data.get('created_at'),
+                    "updated_at": order_data.get('updated_at')
+                }
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get current order: {str(e)}"
+        )
+
+
 @router.put("/{session_id}")
+@inject
 async def update_session(
     session_id: str,
     updates: dict,

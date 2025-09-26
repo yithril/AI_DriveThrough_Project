@@ -14,7 +14,7 @@ from app.core.unit_of_work import UnitOfWork
 from app.services.excel_import_service import ExcelImportService
 from app.services.restaurant_import_service import RestaurantImportService
 from app.services.file_storage_service import S3FileStorageService
-from app.services.canned_audio_service import CannedAudioService
+from app.services.voice_service import VoiceService
 from app.core.config import settings
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -29,7 +29,7 @@ async def admin_import(
     excel_import_service: ExcelImportService = Depends(Provide[Container.excel_import_service]),
     restaurant_import_service: RestaurantImportService = Depends(Provide[Container.restaurant_import_service]),
     file_storage_service: S3FileStorageService = Depends(Provide[Container.file_storage_service]),
-    audio_generation_service: CannedAudioService = Depends(Provide[Container.canned_audio_service]),
+    voice_service: VoiceService = Depends(Provide[Container.voice_service]),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin import endpoint - no auth for MVP testing"""
@@ -71,9 +71,9 @@ async def admin_import(
         
         # Generate audio if requested
         if generate_audio:
-            await audio_generation_service.generate_canned_audio(
+            await voice_service.generate_all_canned_phrases(
                 restaurant_id=result.data.get('restaurant_id'),
-                db=db
+                restaurant_name=result.data.get('restaurant_name')
             )
         
         return {

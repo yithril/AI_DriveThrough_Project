@@ -49,22 +49,57 @@ class ServiceFactory:
         # Create the required dependencies
         order_session_service = self.create_order_session_service()
         customization_validator = self.create_customization_validator(db_session)
+        voice_service = self.create_voice_service()
+        order_validator = self.create_order_validator()
         
-        return OrderService(order_session_service, customization_validator)
+        return OrderService(order_session_service, customization_validator, voice_service, order_validator)
     
     def create_customization_validator(self, db_session: AsyncSession):
         """Create CustomizationValidator with database session"""
         from app.services.customization_validation_service import CustomizationValidationService
         return CustomizationValidationService()
     
+    def create_order_validator(self):
+        """Create OrderValidator"""
+        from app.services.order_validator import OrderValidator
+        return OrderValidator()
+    
     # Non-database services (can be created directly from container)
     def create_order_session_service(self):
         """Create OrderSessionService (uses Redis, no database)"""
-        return self.container.order_session_service()
+        from app.services.order_session_service import OrderSessionService
+        from app.services.redis_service import RedisService
+        
+        # Create Redis service directly
+        redis_service = RedisService()
+        return OrderSessionService(redis_service)
     
     def create_voice_service(self):
         """Create VoiceService (no database dependencies)"""
-        return self.container.voice_service()
+        from app.services.voice_service import VoiceService
+        from app.services.text_to_speech_service import TextToSpeechService
+        from app.services.speech_to_text_service import SpeechToTextService
+        from app.services.file_storage_service import S3FileStorageService
+        from app.services.redis_service import RedisService
+        from app.core.config import settings
+        
+        # Create dependencies directly
+        tts_provider = self.container.tts_provider()
+        text_to_speech_service = TextToSpeechService(tts_provider)
+        speech_to_text_service = self.container.speech_to_text_service()
+        file_storage_service = S3FileStorageService(
+            bucket_name=settings.S3_BUCKET_NAME,
+            region=settings.S3_REGION,
+            endpoint_url=settings.AWS_ENDPOINT_URL
+        )
+        redis_service = RedisService()
+        
+        return VoiceService(
+            text_to_speech_service=text_to_speech_service,
+            speech_to_text_service=speech_to_text_service,
+            file_storage_service=file_storage_service,
+            redis_service=redis_service
+        )
     
     def create_redis_service(self):
         """Create RedisService (no database dependencies)"""

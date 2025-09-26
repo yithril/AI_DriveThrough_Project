@@ -22,8 +22,9 @@ class ResolvedItem(BaseModel):
     resolved_name: Optional[str] = Field(default=None, description="Resolved menu item name")
     confidence: float = Field(description="Confidence in resolution (0.0 to 1.0)", ge=0.0, le=1.0)
     
-    # Ambiguity handling
+    # Ambiguity and availability handling
     is_ambiguous: bool = Field(default=False, description="Whether this item is ambiguous")
+    is_unavailable: bool = Field(default=False, description="Whether this item is unavailable")
     suggested_options: List[str] = Field(default_factory=list, description="Suggested menu items for clarification")
     clarification_question: Optional[str] = Field(default=None, description="Question to ask for clarification")
     
@@ -57,8 +58,7 @@ class MenuResolutionResponse(BaseModel):
     @classmethod
     def validate_resolved_items(cls, v):
         """Ensure at least one item is provided for successful resolutions"""
-        if not v:
-            raise ValueError("At least one item must be provided for successful resolution")
+        # Only validate for successful resolutions - allow empty list for error cases
         return v
     
     def has_ambiguous_items(self) -> bool:

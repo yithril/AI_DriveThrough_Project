@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { getImageUrl } from '../lib/s3-utils';
 
 interface RestaurantLogoProps {
   restaurant?: {
@@ -23,7 +24,7 @@ export default function RestaurantLogo({ restaurant }: RestaurantLogoProps) {
     >
       {restaurant?.logo_url ? (
         <img 
-          src={`${process.env.NEXT_PUBLIC_S3_BUCKET_URL || 'https://ai-drivethru-files.s3.us-east-2.amazonaws.com'}/restaurants/${process.env.NEXT_PUBLIC_RESTAURANT_ID || '1'}/images/${restaurant.logo_url}`}
+          src={getImageUrl(restaurant.logo_url, restaurant.id)}
           alt={restaurant.name}
           className="w-full h-auto object-contain"
           style={{ maxHeight: '200px', maxWidth: '100%' }}

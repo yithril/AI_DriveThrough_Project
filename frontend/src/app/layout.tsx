@@ -5,6 +5,7 @@ import { DataProvider } from "@/contexts/DataContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SpeakerProvider } from "@/contexts/SpeakerContext";
 import { SessionProvider } from "@/contexts/SessionContext";
+import { OrderProvider } from "@/contexts/OrderContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const geistSans = Geist({
@@ -32,17 +33,19 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-            <ErrorBoundary>
-              <DataProvider>
-                <ThemeProvider>
-                  <SpeakerProvider>
-                        <SessionProvider>
-                          {children}
-                        </SessionProvider>
-                  </SpeakerProvider>
-                </ThemeProvider>
-              </DataProvider>
-            </ErrorBoundary>
+            <DataProvider>
+              <ThemeProvider>
+                <SpeakerProvider>
+                  <SessionProvider>
+                    <OrderProvider>
+                      <ErrorBoundary>
+                        {children}
+                      </ErrorBoundary>
+                    </OrderProvider>
+                  </SessionProvider>
+                </SpeakerProvider>
+              </ThemeProvider>
+            </DataProvider>
       </body>
     </html>
   );

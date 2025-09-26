@@ -1,20 +1,22 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSession } from '@/contexts/SessionContext';
+import { useOrder } from '@/contexts/OrderContext';
 import { apiClient } from '@/lib/api';
 import { LineItem, SessionData } from '@/types/order';
 
 const OrderComponent = React.forwardRef<{ refreshOrder: () => void }>((props, ref) => {
   const { theme } = useTheme();
   const { sessionId, restaurantId, isLoading: sessionLoading } = useSession();
+  const { refreshTrigger } = useOrder();
   const [orderItems, setOrderItems] = useState<LineItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch order data from session
-  const fetchOrderData = async () => {
+  // Fetch order data from current order endpoint
+  const fetchOrderData = useCallback(async () => {
     if (!sessionId) {
       setOrderItems([]);
       return;
@@ -23,29 +25,42 @@ const OrderComponent = React.forwardRef<{ refreshOrder: () => void }>((props, re
     try {
       setIsLoading(true);
       setError(null);
-      const response = await apiClient.getCurrentSession();
+      const response = await apiClient.getCurrentOrder();
       
-      if (response.success && response.data.session) {
-        const session = response.data.session;
-        const lineItems = session.order_state?.line_items || [];
+      if (response.success && response.data.order) {
+        const order = response.data.order;
+        const lineItems = order.items || [];
         
-        // Use line items directly since they already have the right structure
-        setOrderItems(lineItems);
+        // Map API data to frontend format
+        const mappedItems = lineItems.map(item => ({
+          id: item.id,
+          menu_item_id: item.menu_item_id,
+          name: item.menu_item?.name || 'Unknown Item',
+          price: item.unit_price || 0,
+          quantity: item.quantity || 1,
+          total_price: item.total_price || 0,
+          customizations: item.customizations || [],
+          special_instructions: item.special_instructions
+        }));
+        
+        setOrderItems(mappedItems);
       } else {
         setOrderItems([]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to fetch order data:', err);
-      setError(err.message || 'Failed to fetch order data');
+      setError(err instanceof Error ? err.message : 'Failed to fetch order data');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Fetch order data when session changes
-  useEffect(() => {
-    fetchOrderData();
   }, [sessionId]);
+
+  // Auto-refresh when order context triggers refresh
+  useEffect(() => {
+    if (refreshTrigger > 0 && sessionId) {
+      fetchOrderData();
+    }
+  }, [refreshTrigger, sessionId, fetchOrderData]);
 
   // Auto-refresh when order changes (this will be called from VoiceOrderComponent)
   const refreshOrder = () => {
@@ -58,7 +73,7 @@ const OrderComponent = React.forwardRef<{ refreshOrder: () => void }>((props, re
   }));
 
   const total = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
+  
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -68,12 +83,6 @@ const OrderComponent = React.forwardRef<{ refreshOrder: () => void }>((props, re
         >
           Current Order
         </h2>
-        <div 
-          className="text-sm"
-          style={{ color: theme.text.secondary }}
-        >
-          {sessionId ? `Session: ${sessionId.slice(0, 8)}...` : 'No active session'}
-        </div>
       </div>
 
       {/* Loading State */}
@@ -108,12 +117,12 @@ const OrderComponent = React.forwardRef<{ refreshOrder: () => void }>((props, re
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
-          <p style={{ color: theme.text.secondary }}>No active session</p>
+          <p style={{ color: theme.text.secondary }}>Ready to take your order</p>
           <p 
             className="text-sm mt-1"
             style={{ color: theme.text.muted }}
           >
-            Start a new session to begin ordering
+            Click "New Car" to start ordering
           </p>
         </div>
       )}
@@ -137,7 +146,10 @@ const OrderComponent = React.forwardRef<{ refreshOrder: () => void }>((props, re
             Add items from the menu
           </p>
         </div>
-      ) : (
+      )}
+
+      {/* Order Items */}
+      {sessionId && !isLoading && !error && orderItems.length > 0 && (
         <div className="space-y-3">
           {orderItems.map(item => (
             <div 

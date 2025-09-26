@@ -22,6 +22,12 @@ export interface OrderState {
   };
 }
 
+export interface ConversationEntry {
+  role: string;
+  content: string;
+  timestamp: string;
+}
+
 export interface SessionData {
   id: string;
   restaurant_id: number;
@@ -29,7 +35,7 @@ export interface SessionData {
   created_at: string;
   updated_at: string;
   conversation_state: string;
-  conversation_history: any[];
+  conversation_history: ConversationEntry[];
   conversation_context: {
     turn_counter: number;
     last_action_uuid?: string;

@@ -70,7 +70,7 @@ class MenuService:
             # Log error but return empty list to prevent agent failures
             return []
     
-    async def search_menu_items(self, restaurant_id: int, query: str) -> List[str]:
+    async def search_menu_items(self, restaurant_id: int, query: str) -> List[Any]:
         """
         Search for menu items using flexible keyword matching.
         
@@ -79,37 +79,129 @@ class MenuService:
             query: Search query
             
         Returns:
-            List of matching menu item names
+            List of matching MenuItem objects
         """
         try:
-            # Try cache first
+            print(f"\n🔍 DEBUG - SEARCH_MENU_ITEMS:")
+            print(f"   Query: '{query}'")
+            print(f"   Restaurant ID: {restaurant_id}")
+            
+            # Try cache first, then fall back to database
             if self.cache_service:
                 try:
-                    matching_items = await self.cache_service.search_menu_items(restaurant_id, query)
-                    if matching_items:
-                        return [item.name for item in matching_items]
+                    # Try to get cached menu items (async)
+                    cached_items = await self.cache_service.get_menu_items(restaurant_id)
+                    if cached_items:
+                        print(f"   Cache has {len(cached_items)} items")
+                        
+                        # Normalize query
+                        normalized_query = self._normalize_query(query)
+                        print(f"   Normalized query: '{normalized_query}'")
+                        
+                        # Try exact match first
+                        exact_matches = []
+                        for item in cached_items:
+                            if self._normalize_query(item.name) == normalized_query:
+                                exact_matches.append(item)
+                                print(f"   ✅ EXACT MATCH: '{item.name}'")
+                        
+                        if exact_matches:
+                            print(f"   Found {len(exact_matches)} exact matches")
+                            return exact_matches
+                        
+                        # Fall back to keyword matching
+                        query_words = self._extract_keywords(normalized_query)
+                        print(f"   Query keywords: {query_words}")
+                        matching_items = []
+                        
+                        for item in cached_items:
+                            item_normalized = self._normalize_query(item.name)
+                            item_keywords = self._extract_keywords(item_normalized)
+                            print(f"   Checking item: '{item.name}' (keywords: {item_keywords})")
+                            
+                            # Check if any query keyword matches any item keyword (partial matching)
+                            matches = []
+                            for query_word in query_words:
+                                # Check if query word is contained in any item keyword
+                                item_matches = [query_word in item_keyword for item_keyword in item_keywords]
+                                matches.append(any(item_matches))
+                            print(f"   Keyword matches: {matches}")
+                            if any(matches):
+                                matching_items.append(item)
+                                print(f"   ✅ KEYWORD MATCH: '{item.name}'")
+                            else:
+                                print(f"   ❌ NO MATCH: '{item.name}'")
+                        
+                        print(f"   Final matching items: {[item.name for item in matching_items]}")
+                        return matching_items
+                    else:
+                        print(f"   No cached items found - falling back to database")
+                        return await self._search_database(restaurant_id, query)
                 except Exception as cache_error:
-                    logger.warning(f"Cache search failed: {cache_error}, falling back to database")
-            
-            # Fallback to database
-            async with UnitOfWork(self.db) as uow:
-                menu_items = await uow.menu_items.get_by_restaurant(restaurant_id)
-                available_items = [item.name for item in menu_items if item.is_available]
+                    print(f"   Cache error: {cache_error}")
+                    logger.warning(f"Cache search failed: {cache_error}")
+                    return await self._search_database(restaurant_id, query)
+            else:
+                print(f"   No cache service available - falling back to database")
+                return await self._search_database(restaurant_id, query)
                 
-                # Flexible keyword matching
-                query_words = query.lower().split()
-                matching_items = []
-                
-                for item in available_items:
-                    item_lower = item.lower()
-                    # Check if any query word is contained in the item name
-                    if any(query_word in item_lower for query_word in query_words):
-                        matching_items.append(item)
-                
-                return matching_items
         except Exception as e:
+            print(f"   Error in search_menu_items: {str(e)}")
             # Log error but return empty list to prevent agent failures
             return []
+    
+    def _normalize_query(self, query: str) -> str:
+        """
+        Normalize query text for better matching.
+        
+        Args:
+            query: Input query string
+            
+        Returns:
+            Normalized query string
+        """
+        import re
+        import unicodedata
+        
+        # Convert to lowercase
+        normalized = query.lower()
+        
+        # Remove accents and normalize Unicode
+        normalized = unicodedata.normalize('NFKC', normalized)
+        
+        # Remove punctuation except spaces
+        normalized = re.sub(r'[^\w\s]', ' ', normalized)
+        
+        # Collapse multiple spaces into single space
+        normalized = re.sub(r'\s+', ' ', normalized)
+        
+        # Strip leading/trailing whitespace
+        return normalized.strip()
+    
+    def _extract_keywords(self, text: str) -> List[str]:
+        """
+        Extract meaningful keywords from text, removing stopwords.
+        
+        Args:
+            text: Input text
+            
+        Returns:
+            List of keywords
+        """
+        # Common stopwords to remove
+        STOPWORDS = {
+            'the', 'a', 'an', 'and', 'or', 'but', 'please', 'i', 'would', 'like', 'to', 'add',
+            'get', 'want', 'need', 'have', 'can', 'could', 'will', 'shall', 'may', 'might',
+            'this', 'that', 'these', 'those', 'my', 'your', 'his', 'her', 'its', 'our', 'their',
+            'is', 'are', 'was', 'were', 'be', 'been', 'being', 'do', 'does', 'did', 'done',
+            'meal', 'combo', 'with', 'without', 'extra', 'no', 'yes', 'some', 'any', 'all'
+        }
+        
+        # Split into words and filter out stopwords (case insensitive)
+        words = text.split()
+        keywords = [word.lower() for word in words if word.lower() not in STOPWORDS and len(word) > 1]
+        
+        return keywords
     
     async def get_restaurant_name(self, restaurant_id: int) -> str:
         """
@@ -288,3 +380,105 @@ class MenuService:
         except Exception as e:
             logger.error(f"Failed to get ingredients with costs for restaurant {restaurant_id}: {e}")
             return []
+    
+    async def _search_database(self, restaurant_id: int, query: str) -> List[Any]:
+        """
+        Search database directly when cache is not available.
+        
+        Args:
+            restaurant_id: Restaurant ID
+            query: Search query
+            
+        Returns:
+            List of matching MenuItem objects
+        """
+        try:
+            print(f"   🔄 Searching database directly...")
+            print(f"   Database session: {self.db}")
+            
+            # Get all menu items from database
+            from app.repository.menu_item_repository import MenuItemRepository
+            menu_item_repo = MenuItemRepository(self.db)
+            print(f"   Repository created: {menu_item_repo}")
+            
+            # Get all menu items for the restaurant
+            menu_items = await menu_item_repo.get_by_restaurant(restaurant_id)
+            print(f"   Database has {len(menu_items)} items")
+            
+            if not menu_items:
+                return []
+            
+            # Normalize query
+            normalized_query = self._normalize_query(query)
+            print(f"   Normalized query: '{normalized_query}'")
+            
+            # Try exact match first
+            exact_matches = []
+            for item in menu_items:
+                if self._normalize_query(item.name) == normalized_query:
+                    exact_matches.append(item)
+                    print(f"   ✅ EXACT MATCH: '{item.name}'")
+            
+            if exact_matches:
+                print(f"   Found {len(exact_matches)} exact matches")
+                return exact_matches
+            
+            # Fall back to keyword matching
+            query_words = self._extract_keywords(normalized_query)
+            print(f"   Query keywords: {query_words}")
+            matching_items = []
+            
+            for item in menu_items:
+                item_normalized = self._normalize_query(item.name)
+                item_keywords = self._extract_keywords(item_normalized)
+                print(f"   Checking item: '{item.name}' (keywords: {item_keywords})")
+                
+                # Check if any query keyword matches any item keyword (partial matching)
+                matches = []
+                for query_word in query_words:
+                    # Check if query word is contained in any item keyword
+                    item_matches = [query_word in item_keyword for item_keyword in item_keywords]
+                    matches.append(any(item_matches))
+                print(f"   Keyword matches: {matches}")
+                if any(matches):
+                    matching_items.append(item)
+                    print(f"   ✅ KEYWORD MATCH: '{item.name}'")
+                else:
+                    print(f"   ❌ NO MATCH: '{item.name}'")
+            
+            print(f"   Final matching items: {[item.name for item in matching_items]}")
+            return matching_items
+            
+        except Exception as e:
+            print(f"   Database search error: {str(e)}")
+            logger.error(f"Database search failed: {e}")
+            return []
+    
+    async def get_menu_item_by_name(self, restaurant_id: int, item_name: str):
+        """
+        Get a menu item by name for a restaurant.
+        
+        Args:
+            restaurant_id: Restaurant ID
+            item_name: Menu item name
+            
+        Returns:
+            MenuItem object or None if not found
+        """
+        try:
+            from app.repository.menu_item_repository import MenuItemRepository
+            menu_item_repo = MenuItemRepository(self.db)
+            
+            # Get all menu items for the restaurant
+            menu_items = await menu_item_repo.get_by_restaurant(restaurant_id)
+            
+            # Find the item by name (case-insensitive)
+            for item in menu_items:
+                if self._normalize_query(item.name) == self._normalize_query(item_name):
+                    return item
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get menu item by name: {e}")
+            return None

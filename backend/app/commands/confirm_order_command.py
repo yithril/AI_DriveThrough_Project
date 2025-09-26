@@ -52,7 +52,12 @@ class ConfirmOrderCommand(BaseCommand):
                 return OrderResult.error("Cannot confirm empty order. Please add items first.")
             
             # Confirm the order (update status to confirmed)
-            result = await context.order_service.confirm_order(db, context.get_order_id())
+            result = await context.order_service.confirm_order(
+                db=db,
+                order_id=str(context.get_order_id()),
+                session_id=context.get_session_id(),  # NEW: Pass session_id
+                restaurant_id=context.restaurant_id    # NEW: Pass restaurant_id
+            )
             
             if result.is_success:
                 # Get order summary for confirmation message
@@ -67,6 +72,7 @@ class ConfirmOrderCommand(BaseCommand):
                 
                 result.data.update({
                     "order_confirmed": True,
+                    "response_type": "order_confirmed",
                     "item_count": item_count,
                     "total_amount": total_amount,
                     "order_status": "confirmed"

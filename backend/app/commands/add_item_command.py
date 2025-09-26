@@ -63,9 +63,11 @@ class AddItemCommand(BaseCommand):
             # Add item to order using OrderService from context
             result = await context.order_service.add_item_to_order(
                 db=db,
-                order_id=context.get_order_id(),
+                order_id=str(context.get_order_id()),  # Convert int to str for OrderService
                 menu_item_id=self.menu_item_id,
                 quantity=self.quantity,
+                session_id=context.get_session_id(),  # NEW: Pass session_id
+                restaurant_id=context.restaurant_id,   # NEW: Pass restaurant_id
                 customizations=self.modifiers,  # Pass modifiers as customizations for now
                 special_instructions=self.special_instructions,
                 size=self.size  # Pass size to OrderService for message generation

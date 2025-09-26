@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from 'axios';
 import { Restaurant, MenuCategory, RestaurantMenuResponse } from '@/types/restaurant';
+import { SessionData } from '@/types/order';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -62,8 +63,12 @@ class ApiClient {
   }
 
   // Session management endpoints
-  async getCurrentSession(): Promise<{ success: boolean; data: { session: any } }> {
+  async getCurrentSession(): Promise<{ success: boolean; data: { session: SessionData } }> {
     return this.request('/api/sessions/current');
+  }
+
+  async getCurrentOrder(): Promise<{ success: boolean; data: { order: any } }> {
+    return this.request('/api/sessions/current-order');
   }
 
   async createNewSession(restaurantId: number): Promise<{ success: boolean; data: { session_id: string } }> {

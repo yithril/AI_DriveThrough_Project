@@ -38,12 +38,12 @@ class Container(containers.DeclarativeContainer):
         provider=tts_provider
     )
     
-    # File storage service (depends on config)
+    # File storage service (depends on settings)
     file_storage_service = providers.Singleton(
-        "app.services.file_storage_service.FileStorageService",
-        bucket_name=config.S3_BUCKET_NAME,
-        region=config.S3_REGION,
-        endpoint_url=config.AWS_ENDPOINT_URL
+        "app.services.file_storage_service.S3FileStorageService",
+        bucket_name=settings.S3_BUCKET_NAME,
+        region=settings.S3_REGION,
+        endpoint_url=settings.AWS_ENDPOINT_URL
     )
     
     # Order session service (Redis primary with PostgreSQL fallback)
@@ -57,18 +57,9 @@ class Container(containers.DeclarativeContainer):
         "app.services.customization_validation_service.CustomizationValidationService"
     )
     
-    # Order service (depends on OrderSessionService and CustomizationValidator)
-    order_service = providers.Factory(
-        "app.services.order_service.OrderService",
-        order_session_service=order_session_service,
-        customization_validator=customization_validator
-    )
-    
-    # Canned audio service (depends on file storage and TTS) - DEPRECATED: Use voice_service instead
-    canned_audio_service = providers.Singleton(
-        "app.services.canned_audio_service.CannedAudioService",
-        file_storage=file_storage_service,
-        tts_service=text_to_speech_service
+    # Order validation service
+    order_validator = providers.Singleton(
+        "app.services.order_validator.OrderValidator"
     )
     
     # Voice service (unified service for all voice operations)
@@ -80,10 +71,61 @@ class Container(containers.DeclarativeContainer):
         redis_service=redis_service
     )
     
-    # Conversation workflow (LangGraph workflow)
-    conversation_workflow = providers.Singleton(
-        "app.agents.workflow.ConversationWorkflow",
+    # Order service (depends on OrderSessionService, CustomizationValidator, and VoiceService)
+    order_service = providers.Factory(
+        "app.services.order_service.OrderService",
+        order_session_service=order_session_service,
+        customization_validator=customization_validator,
+        voice_service=voice_service,
+        order_validator=order_validator
+    )
+    
+    # Service factory (for creating services with database sessions)
+    service_factory = providers.Singleton(
+        "app.core.service_factory.ServiceFactory",
+        container=providers.Self()
+    )
+    
+    # Menu service (needs database session, created per request)
+    menu_service = providers.Factory("app.services.menu_service.MenuService")
+    
+    # Conversation services
+    intent_classification_service = providers.Singleton(
+        "app.core.services.conversation.intent_classification_service.IntentClassificationService"
+    )
+    
+    state_transition_service = providers.Singleton(
+        "app.core.services.conversation.state_transition_service.StateTransitionService",
+        order_session_service=order_session_service
+    )
+    
+    intent_parser_router_service = providers.Singleton(
+        "app.core.services.conversation.intent_parser_router_service.IntentParserRouterService"
+    )
+    
+    command_executor_service = providers.Singleton(
+        "app.core.services.conversation.command_executor_service.CommandExecutorService",
+        order_service=order_service
+    )
+    
+    response_aggregator_service = providers.Singleton(
+        "app.core.services.conversation.response_aggregator_service.ResponseAggregatorService"
+    )
+    
+    voice_generation_service = providers.Singleton(
+        "app.core.services.conversation.voice_generation_service.VoiceGenerationService",
         voice_service=voice_service
+    )
+    
+    # Conversation orchestrator (replaces LangGraph workflow)
+    conversation_orchestrator = providers.Singleton(
+        "app.core.conversation_orchestrator.ConversationOrchestrator",
+        intent_classification_service=intent_classification_service,
+        state_transition_service=state_transition_service,
+        intent_parser_router_service=intent_parser_router_service,
+        command_executor_service=command_executor_service,
+        response_aggregator_service=response_aggregator_service,
+        voice_generation_service=voice_generation_service
     )
     
     # Audio pipeline service (orchestrates other services)
@@ -92,15 +134,12 @@ class Container(containers.DeclarativeContainer):
         voice_service=voice_service,
         validation_service=validation_service,
         order_session_service=order_session_service,
-        conversation_workflow=conversation_workflow
+        conversation_orchestrator=conversation_orchestrator
     )
     
     # Import services (these need database sessions, so they're created per request)
     excel_import_service = providers.Factory("app.services.excel_import_service.ExcelImportService")
     restaurant_import_service = providers.Factory("app.services.restaurant_import_service.RestaurantImportService")
-    
-    # Menu service (needs database session, created per request)
-    menu_service = providers.Factory("app.services.menu_service.MenuService")
     
     # Restaurant service (needs database session, created per request)
     restaurant_service = providers.Factory("app.services.restaurant_service.RestaurantService")

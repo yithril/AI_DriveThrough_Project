@@ -30,3 +30,19 @@
   - Audit trail for all price calculations
   - Database tables for tax rates, location rules, customer types
   - Strategy pattern for different pricing models
+
+## Dependency Injection Cleanup
+
+- [ ] **Standardize ServiceFactory usage across codebase** - Convert manual ServiceFactory instantiation to proper DI
+  - Update `app/api/sessions.py` to use DI instead of manual `ServiceFactory(container)`
+  - Update all test files to use DI pattern instead of manual instantiation
+  - Review other services that manually create ServiceFactory instances
+  - Ensure consistent dependency injection pattern throughout the application
+  - Consider if any other services need similar DI improvements
+  - Benefits: Better testability, consistency, and maintainability
+
+- [x] **Remove unnecessary FileStorageService wrapper** - Eliminated pointless wrapper class
+  - Container now directly injects `S3FileStorageService` instead of wrapper
+  - Removed 25 lines of unnecessary code that just passed through to S3FileStorageService
+  - Cleaner dependency injection without extra abstraction layers
+  - Benefits: Reduced complexity, better maintainability, fewer bugs

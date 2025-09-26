@@ -41,7 +41,12 @@ class ClearOrderCommand(BaseCommand):
         """
         try:
             # Clear the order using OrderService from context
-            result = await context.order_service.clear_order(db, context.get_order_id())
+            result = await context.order_service.clear_order(
+                db=db,
+                order_id=str(context.get_order_id()),
+                session_id=context.get_session_id(),  # NEW: Pass session_id
+                restaurant_id=context.restaurant_id    # NEW: Pass restaurant_id
+            )
             
             # Enhance message for AI
             if result.is_success:

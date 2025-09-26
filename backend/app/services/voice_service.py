@@ -13,7 +13,7 @@ import logging
 from typing import Optional, Dict, Any
 from .text_to_speech_service import TextToSpeechService
 from .speech_to_text_service import SpeechToTextService
-from .file_storage_service import FileStorageService
+from .file_storage_service import FileStorageInterface
 from .redis_service import RedisService
 from ..constants.audio_phrases import AudioPhraseType, AudioPhraseConstants
 from ..core.config import settings
@@ -36,7 +36,7 @@ class VoiceService:
         self, 
         text_to_speech_service: TextToSpeechService,
         speech_to_text_service: SpeechToTextService,
-        file_storage_service: FileStorageService,
+        file_storage_service: FileStorageInterface,
         redis_service: RedisService = None
     ):
         self.text_to_speech_service = text_to_speech_service
@@ -379,14 +379,38 @@ class VoiceService:
                     logger.info(f"Found cached canned phrase: {cached_url}")
                     return cached_url
             
+            # If not found in cache, check if file exists in S3
+            logger.info(f"File not found in cache, checking if it exists in S3: {cache_path}")
+            
+            # Check if file exists in S3
+            bucket_name = getattr(self.file_storage_service, 'bucket_name', None)
+            region = getattr(self.file_storage_service, 'region', 'us-east-1')
+            
+            if bucket_name:
+                try:
+                    # Check if file exists in S3
+                    self.file_storage_service.s3_client.head_object(Bucket=bucket_name, Key=cache_path)
+                    https_url = f"https://{bucket_name}.s3.{region}.amazonaws.com/{cache_path}"
+                    logger.info(f"Found existing S3 file: {https_url}")
+                    return https_url
+                except self.file_storage_service.s3_client.exceptions.NoSuchKey:
+                    logger.info(f"File does not exist in S3: {cache_path} - will generate new file")
+                except Exception as e:
+                    logger.warning(f"Error checking S3 file existence: {e} - will generate new file")
+                    # Continue to generate new file
+            else:
+                logger.warning(f"No bucket name available - will generate new file")
+            
             # Generate new canned phrase
-            logger.info(f"Generating new canned phrase: {phrase_type.value}")
+            logger.info(f"🔊 GENERATING NEW CANNED PHRASE: {phrase_type.value}")
             text = AudioPhraseConstants.get_phrase_text(phrase_type, restaurant_name)
+            logger.info(f"🔊 Phrase text: '{text}'")
             if not text:
                 logger.error(f"No text found for phrase type {phrase_type.value}")
                 return None
             
             # Generate audio using TTS
+            logger.info(f"🔊 Starting TTS generation for: '{text}'")
             audio_chunks = []
             async for chunk in self.text_to_speech_service.generate_audio_stream(
                 text, 
@@ -400,7 +424,8 @@ class VoiceService:
             
             # Store in cache
             audio_data = b''.join(audio_chunks)
-            logger.info(f"Storing canned phrase in cache: {cache_path}")
+            logger.info(f"🔊 Generated {len(audio_data)} bytes of audio data")
+            logger.info(f"🔊 Storing canned phrase in S3: {cache_path}")
             store_result = await self.file_storage_service.store_file(
                 file_data=audio_data,
                 file_name=cache_path,
@@ -412,10 +437,10 @@ class VoiceService:
                 audio_url = (store_result.data.get('url') or 
                            store_result.data.get('s3_url') or 
                            store_result.data.get('file_path'))
-                logger.info(f"Successfully generated and cached canned phrase: {audio_url}")
+                logger.info(f"🔊 ✅ Successfully generated and stored canned phrase: {audio_url}")
                 return audio_url
             else:
-                logger.error(f"Failed to store canned phrase: {store_result.message}")
+                logger.error(f"🔊 ❌ Failed to store canned phrase: {store_result.message}")
                 return None
                 
         except Exception as e:
@@ -433,7 +458,8 @@ class VoiceService:
         Returns:
             S3 object key path
         """
-        return f"canned-phrases/restaurant-{restaurant_id}/{phrase_type.value}.mp3"
+        # Use the same path structure as the actual S3 files: restaurants/{id}/audio/{filename}
+        return f"restaurants/{restaurant_id}/audio/{phrase_type.value}.mp3"
     
     async def generate_all_canned_phrases(
         self, 
@@ -533,6 +559,18 @@ class VoiceService:
             File ID for the stored audio, or None if failed
         """
         try:
+            # DEBUG: Log what we're passing to file storage
+            print(f"DEBUG VoiceService.store_uploaded_audio called with:")
+            print(f"  audio_data: {type(audio_data)} - {len(audio_data) if audio_data else 'None'}")
+            print(f"  filename: {filename}")
+            print(f"  content_type: {content_type}")
+            print(f"  restaurant_id: {restaurant_id}")
+            
+            if audio_data is None:
+                print("ERROR: audio_data is None in VoiceService!")
+                logger.error("audio_data is None in VoiceService.store_uploaded_audio")
+                return None
+            
             store_result = await self.file_storage_service.store_file(
                 file_data=audio_data,
                 file_name=filename,

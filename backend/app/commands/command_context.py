@@ -68,19 +68,22 @@ class CommandContext:
         """Check if this context is scoped to a specific session"""
         return self.session_id is not None
     
-    def get_order_id(self) -> int:
+    def get_order_id(self) -> str:
         """
-        Get the order ID for this context
+        Get the order ID for this context (derived from session)
         
         Returns:
-            int: Order ID
+            str: Order ID linked to this session
             
         Raises:
-            ValueError: If no order ID is set
+            ValueError: If no session ID is set
         """
-        if self.order_id is None:
-            raise ValueError("Command context is not scoped to an order")
-        return self.order_id
+        if self.session_id is None:
+            raise ValueError("Command context is not scoped to a session")
+        
+        # For now, return the session_id as the order_id
+        # TODO: This should be replaced with proper order lookup
+        return self.session_id
     
     def get_session_id(self) -> str:
         """

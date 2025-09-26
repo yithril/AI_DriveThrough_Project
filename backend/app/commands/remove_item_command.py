@@ -72,8 +72,11 @@ class RemoveItemCommand(BaseCommand):
             
             # Remove item from order
             result = await context.order_service.remove_item_from_order(
-                order_id=context.get_order_id(),
-                order_item_id=self.order_item_id
+                db=db,
+                order_id=str(context.get_order_id()),
+                order_item_id=str(self.order_item_id),
+                session_id=context.get_session_id(),  # NEW: Pass session_id
+                restaurant_id=context.restaurant_id    # NEW: Pass restaurant_id
             )
             
             # Enhance message for AI

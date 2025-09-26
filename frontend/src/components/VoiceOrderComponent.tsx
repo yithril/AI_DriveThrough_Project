@@ -86,47 +86,32 @@ export default function VoiceOrderComponent({ onOrderReceived, onOrderChanged }:
     }
   };
 
-  // Show session management if no session
+  // Show waiting message if no session
   if (!sessionId || !restaurantId) {
     return (
       <div className="space-y-6">
         <div className="text-center">
+          <div 
+            className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: theme.surface }}
+          >
+            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.text.muted }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+          </div>
           <h3 
             className="text-xl font-semibold mb-2"
             style={{ color: theme.text.primary }}
           >
-            Start New Session
+            Voice Order Ready
           </h3>
           <p 
             className="text-sm mb-4"
             style={{ color: theme.text.secondary }}
           >
-            Create a new session to start voice ordering
+            Click "New Car" above to start a new session and enable voice ordering
           </p>
         </div>
-        
-        <div className="text-center">
-          <button
-            onClick={() => createSession(1)} // Default restaurant ID
-            disabled={isLoading}
-            className="px-6 py-3 rounded-lg font-medium transition-colors"
-            style={{ 
-              backgroundColor: theme.button.primary,
-              color: 'white',
-              opacity: isLoading ? 0.6 : 1
-            }}
-          >
-            {isLoading ? 'Creating Session...' : 'Start New Session'}
-          </button>
-        </div>
-        
-        {sessionError && (
-          <div className="text-center">
-            <p className="text-sm" style={{ color: '#ef4444' }}>
-              Error: {sessionError}
-            </p>
-          </div>
-        )}
       </div>
     );
   }

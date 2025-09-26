@@ -66,7 +66,7 @@ class DriveThruStateMachine:
         )
         transitions[(ConversationState.ORDERING, IntentType.CONFIRM_ORDER)] = StateTransition(
             ConversationState.ORDERING, IntentType.CONFIRM_ORDER, ConversationState.CONFIRMING,
-            True, False, AudioPhraseType.ORDER_SUMMARY
+            True, False, AudioPhraseType.ORDER_COMPLETE
         )
         transitions[(ConversationState.ORDERING, IntentType.QUESTION)] = StateTransition(
             ConversationState.ORDERING, IntentType.QUESTION, ConversationState.CLARIFYING,

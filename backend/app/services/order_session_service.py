@@ -58,7 +58,7 @@ class OrderSessionService(OrderSessionInterface):
             str: Current session ID if exists, None otherwise
         """
         if not await self.is_redis_available():
-            logger.warning("Redis not available, cannot get current session")
+            logger.error("Redis not available - cannot get current session (Redis is single source of truth)")
             return None
         
         try:
@@ -79,7 +79,7 @@ class OrderSessionService(OrderSessionInterface):
             bool: True if successful, False otherwise
         """
         if not await self.is_redis_available():
-            logger.warning("Redis not available, cannot set current session")
+            logger.error("Redis not available - cannot set current session (Redis is single source of truth)")
             return False
         
         try:
@@ -116,7 +116,7 @@ class OrderSessionService(OrderSessionInterface):
             dict: Session data if exists, None otherwise
         """
         if not await self.is_redis_available():
-            logger.warning("Redis not available, cannot get session")
+            logger.error("Redis not available - cannot get session (Redis is single source of truth)")
             return None
         
         try:
@@ -220,91 +220,70 @@ class OrderSessionService(OrderSessionInterface):
 
     async def get_order(self, db: AsyncSession, order_id: str) -> Optional[Dict[str, Any]]:
         """
-        Get order data (Redis first, PostgreSQL fallback)
+        Get order data from Redis (single source of truth)
         
         Args:
-            db: Database session for PostgreSQL fallback
+            db: Database session (not used for Redis-only approach)
             order_id: Order ID to retrieve
             
         Returns:
             dict: Order data if exists, None otherwise
         """
-        # Try Redis first if it's a Redis order ID
-        if order_id.startswith("redis_") and await self.is_redis_available():
-            try:
-                redis_order = await self.redis.get_order(order_id)
-                if redis_order:
-                    logger.info(f"Retrieved Redis order {order_id}")
-                    return redis_order
-            except Exception as e:
-                logger.error(f"Failed to get Redis order {order_id}: {e}")
+        if not await self.is_redis_available():
+            logger.error("Redis not available - cannot get order (Redis is single source of truth)")
+            return None
         
-        # Try PostgreSQL fallback
         try:
-            async with UnitOfWork(db) as uow:
-                db_order = await uow.orders.get_by_id(int(order_id))
-            if db_order:
-                logger.info(f"Retrieved PostgreSQL order {order_id}")
-                return db_order.to_dict()
-        except ValueError:
-            # order_id is not a valid integer, skip PostgreSQL lookup
-            logger.debug(f"Order ID {order_id} is not a valid integer for PostgreSQL lookup")
+            redis_order = await self.redis.get_order(order_id)
+            if redis_order:
+                logger.info(f"Retrieved Redis order {order_id}")
+                return redis_order
+            else:
+                logger.info(f"Order {order_id} not found in Redis")
+                return None
         except Exception as e:
-            logger.error(f"Failed to get PostgreSQL order {order_id}: {e}")
-        
-        return None
+            logger.error(f"Failed to get Redis order {order_id}: {e}")
+            return None
 
     async def create_order(self, db: AsyncSession, order_data: Dict[str, Any], ttl: int = 1800) -> bool:
         """
-        Create a new order (Redis primary, PostgreSQL fallback)
+        Create a new order in Redis (single source of truth)
         
         Args:
-            db: Database session for PostgreSQL fallback
+            db: Database session (not used for Redis-only approach)
             order_data: Order data dictionary
             ttl: Time to live in seconds for Redis (default 30 minutes)
             
         Returns:
             bool: True if successful, False otherwise
         """
-        # Try Redis first if available
-        if await self.is_redis_available():
-            try:
-                order_id = order_data.get("id")
-                if not order_id:
-                    logger.error("Order data must contain 'id' field")
-                    return False
-                
-                success = await self.redis.set_order(order_id, order_data, ttl)
-                if success:
-                    logger.info(f"Created Redis order {order_id}")
-                    return True
-            except Exception as e:
-                logger.error(f"Failed to create Redis order: {e}")
+        if not await self.is_redis_available():
+            logger.error("Redis not available - cannot create order (Redis is single source of truth)")
+            return False
         
-        # Fallback to PostgreSQL
         try:
-            async with UnitOfWork(db) as uow:
-                order = await uow.orders.create(
-                    restaurant_id=order_data["restaurant_id"],
-                    customer_name=order_data.get("customer_name"),
-                    status=OrderStatus(order_data.get("status", "PENDING")),
-                    subtotal=order_data.get("subtotal", 0.0),
-                    tax_amount=order_data.get("tax_amount", 0.0),
-                    total_amount=order_data.get("total_amount", 0.0)
-                )
+            order_id = order_data.get("id")
+            if not order_id:
+                logger.error("Order data must contain 'id' field")
+                return False
             
-            logger.info(f"Created PostgreSQL order {order.id}")
-            return True
+            success = await self.redis.set_order(order_id, order_data, ttl)
+            if success:
+                logger.info(f"Created Redis order {order_id}")
+                return True
+            else:
+                logger.error(f"Failed to create Redis order {order_id}")
+                return False
         except Exception as e:
-            logger.error(f"Failed to create PostgreSQL order: {e}")
+            logger.error(f"Failed to create Redis order: {e}")
             return False
 
     async def update_order(self, db: AsyncSession, order_id: str, updates: Dict[str, Any], ttl: int = 1800) -> bool:
         """
-        Update order data (Redis primary, PostgreSQL fallback)
+        Update order data in Redis (single source of truth)
         
         Args:
-            db: Database session for PostgreSQL fallback
+            db: Database session (not used for Redis-only approach)
             order_id: Order ID to update
             updates: Data to merge into order
             ttl: Time to live in seconds for Redis (default 30 minutes)
@@ -312,74 +291,57 @@ class OrderSessionService(OrderSessionInterface):
         Returns:
             bool: True if successful, False otherwise
         """
-        # Try Redis first if it's a Redis order ID
-        if order_id.startswith("redis_") and await self.is_redis_available():
-            try:
-                redis_order = await self.redis.get_order(order_id)
-                if redis_order:
-                    # Merge updates
-                    redis_order.update(updates)
-                    redis_order["updated_at"] = datetime.now().isoformat()
-                    
-                    success = await self.redis.set_order(order_id, redis_order, ttl)
-                    if success:
-                        logger.info(f"Updated Redis order {order_id}")
-                        return True
-            except Exception as e:
-                logger.error(f"Failed to update Redis order {order_id}: {e}")
+        if not await self.is_redis_available():
+            logger.error("Redis not available - cannot update order (Redis is single source of truth)")
+            return False
         
-        # Try PostgreSQL fallback
         try:
-            async with UnitOfWork(db) as uow:
-                db_order = await uow.orders.get_by_id(int(order_id))
-            if db_order:
-                # Update fields if they exist in updates
-                if "status" in updates:
-                    db_order.status = OrderStatus(updates["status"])
-                if "customer_name" in updates:
-                    db_order.customer_name = updates["customer_name"]
-                if "subtotal" in updates:
-                    db_order.subtotal = updates["subtotal"]
-                if "tax_amount" in updates:
-                    db_order.tax_amount = updates["tax_amount"]
-                if "total_amount" in updates:
-                    db_order.total_amount = updates["total_amount"]
+            redis_order = await self.redis.get_order(order_id)
+            if redis_order:
+                # Merge updates
+                redis_order.update(updates)
+                redis_order["updated_at"] = datetime.now().isoformat()
                 
-                # Repository will handle the commit
-                logger.info(f"Updated PostgreSQL order {order_id}")
-                return True
-        except ValueError:
-            # order_id is not a valid integer
-            logger.debug(f"Order ID {order_id} is not a valid integer for PostgreSQL update")
+                success = await self.redis.set_order(order_id, redis_order, ttl)
+                if success:
+                    logger.info(f"Updated Redis order {order_id}")
+                    return True
+                else:
+                    logger.error(f"Failed to update Redis order {order_id}")
+                    return False
+            else:
+                logger.error(f"Order {order_id} not found in Redis for update")
+                return False
         except Exception as e:
-            logger.error(f"Failed to update PostgreSQL order {order_id}: {e}")
-        
-        return False
+            logger.error(f"Failed to update Redis order {order_id}: {e}")
+            return False
 
     async def delete_order(self, db: AsyncSession, order_id: str) -> bool:
         """
-        Delete an order (Redis primary, PostgreSQL fallback)
+        Delete an order from Redis (single source of truth)
         
         Args:
-            db: Database session for PostgreSQL fallback
+            db: Database session (not used for Redis-only approach)
             order_id: Order ID to delete
             
         Returns:
             bool: True if successful, False otherwise
         """
-        # Try Redis first if it's a Redis order ID
-        if order_id.startswith("redis_") and await self.is_redis_available():
-            try:
-                success = await self.redis.delete_order(order_id)
-                if success:
-                    logger.info(f"Deleted Redis order {order_id}")
-                    return True
-            except Exception as e:
-                logger.error(f"Failed to delete Redis order {order_id}: {e}")
+        if not await self.is_redis_available():
+            logger.error("Redis not available - cannot delete order (Redis is single source of truth)")
+            return False
         
-        # PostgreSQL doesn't typically delete orders, just mark as cancelled
-        logger.warning(f"PostgreSQL order deletion not implemented for {order_id}")
-        return False
+        try:
+            success = await self.redis.delete_order(order_id)
+            if success:
+                logger.info(f"Deleted Redis order {order_id}")
+                return True
+            else:
+                logger.error(f"Failed to delete Redis order {order_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to delete Redis order {order_id}: {e}")
+            return False
 
     async def archive_order_to_postgres(self, db: AsyncSession, order_data: Dict[str, Any]) -> Optional[int]:
         """
@@ -426,16 +388,16 @@ class OrderSessionService(OrderSessionInterface):
     # WORKFLOW STATE METHODS - New methods for ConversationWorkflow integration
     # =============================================================================
 
-    async def get_conversation_workflow_state(self, session_id: str, user_input: str) -> ConversationWorkflowState:
+    async def get_conversation_workflow_state(self, session_id: str, user_input: str) -> Dict[str, Any]:
         """
-        Get session data and convert to ConversationWorkflowState for workflow processing.
+        Get session data and convert to workflow state dictionary for processing.
         
         Args:
             session_id: Session ID to retrieve
             user_input: User's speech input for this turn
             
         Returns:
-            ConversationWorkflowState: Workflow state ready for processing
+            Dict[str, Any]: Workflow state ready for processing
             
         Raises:
             ValueError: If session doesn't exist or is invalid
@@ -451,8 +413,8 @@ class OrderSessionService(OrderSessionInterface):
         except Exception as e:
             raise ValueError(f"Invalid session data for {session_id}: {e}")
         
-        # Convert session data to ConversationWorkflowState
-        workflow_state = self._session_data_to_workflow_state(validated_session.dict(), user_input)
+        # Convert session data to workflow state dictionary
+        workflow_state = self._session_data_to_workflow_state_dict(validated_session.dict(), user_input)
         return workflow_state
 
     async def update_conversation_workflow_state(self, session_id: str, workflow_state: ConversationWorkflowState) -> bool:
@@ -504,7 +466,18 @@ class OrderSessionService(OrderSessionInterface):
         Returns:
             bool: True if successful, False otherwise
         """
+        logger.info(f"Starting session creation for session_id={session_id}, restaurant_id={restaurant_id}, customer_name={customer_name}")
+        
+        # Check Redis availability first
+        redis_available = await self.is_redis_available()
+        logger.info(f"Redis availability check: {redis_available}")
+        
+        if not redis_available:
+            logger.error(f"Redis is not available - cannot create session {session_id}")
+            return False
+        
         try:
+            logger.info(f"Creating session data structure for {session_id}")
             # Create default session data with new structure
             session_data = {
                 "id": session_id,
@@ -529,27 +502,47 @@ class OrderSessionService(OrderSessionInterface):
                     "totals": {}
                 }
             }
+            logger.info(f"Session data structure created successfully for {session_id}")
             
             # Validate session data before storing
             try:
+                logger.info(f"Validating session data for {session_id}")
                 validated_session = ConversationSessionData(**session_data)
+                logger.info(f"Session data validation successful for {session_id}")
             except Exception as e:
-                logger.error(f"Invalid session data for {session_id}: {e}")
+                logger.error(f"Session data validation failed for {session_id}: {e}")
+                logger.error(f"Session data that failed validation: {session_data}")
                 return False
             
             # Create session in Redis
-            session_json = json.dumps(validated_session.model_dump())
-            success = await self.redis.set(f"session:{session_id}", session_json, ttl=900)
-            
-            if success:
-                logger.info(f"Created new conversation session {session_id}")
-                return True
-            else:
-                logger.error(f"Failed to create session {session_id} in Redis")
+            try:
+                logger.info(f"Converting session data to JSON for {session_id}")
+                session_json = json.dumps(validated_session.model_dump())
+                logger.info(f"JSON conversion successful for {session_id}, length: {len(session_json)}")
+                
+                logger.info(f"Storing session in Redis with key 'session:{session_id}'")
+                success = await self.redis.set(f"session:{session_id}", session_json, ttl=900)
+                logger.info(f"Redis SET operation result for {session_id}: {success}")
+                
+                if success:
+                    logger.info(f"Successfully created new conversation session {session_id}")
+                    return True
+                else:
+                    logger.error(f"Redis SET returned False for session {session_id}")
+                    return False
+                    
+            except json.JSONEncodeError as e:
+                logger.error(f"JSON encoding failed for session {session_id}: {e}")
+                return False
+            except Exception as e:
+                logger.error(f"Redis operation failed for session {session_id}: {e}")
                 return False
                 
         except Exception as e:
-            logger.error(f"Failed to create new conversation session {session_id}: {e}")
+            logger.error(f"Unexpected error creating session {session_id}: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return False
 
     def _session_data_to_workflow_state(self, session_data: Dict[str, Any], user_input: str) -> ConversationWorkflowState:
@@ -601,6 +594,58 @@ class OrderSessionService(OrderSessionInterface):
             order_state=order_state,
             conversation_context=conversation_context
         )
+        
+        return workflow_state
+
+    def _session_data_to_workflow_state_dict(self, session_data: Dict[str, Any], user_input: str) -> Dict[str, Any]:
+        """
+        Convert session data to workflow state dictionary.
+        
+        Args:
+            session_data: Session data from Redis
+            user_input: User's speech input
+            
+        Returns:
+            Dict[str, Any]: Converted workflow state dictionary
+        """
+        # Extract basic session info
+        session_id = session_data["id"]
+        restaurant_id = session_data["restaurant_id"]
+        
+        # Extract conversation state
+        conversation_state = session_data.get("conversation_state", "ORDERING")
+        
+        # Extract conversation history
+        conversation_history = session_data.get("conversation_history", [])
+        
+        # Extract conversation context
+        context_data = session_data.get("conversation_context", {})
+        conversation_context = {
+            "turn_counter": context_data.get("turn_counter", 0),
+            "last_action_uuid": context_data.get("last_action_uuid"),
+            "thinking_since": context_data.get("thinking_since"),
+            "timeout_at": context_data.get("timeout_at"),
+            "expectation": context_data.get("expectation", "free_form_ordering")
+        }
+        
+        # Extract order state
+        order_data = session_data.get("order_state", {})
+        order_state = {
+            "line_items": order_data.get("line_items", []),
+            "last_mentioned_item_ref": order_data.get("last_mentioned_item_ref"),
+            "totals": order_data.get("totals", {})
+        }
+        
+        # Create workflow state dictionary
+        workflow_state = {
+            "session_id": session_id,
+            "restaurant_id": restaurant_id,
+            "user_input": user_input,
+            "conversation_history": conversation_history,
+            "current_state": conversation_state,
+            "order_state": order_state,
+            "conversation_context": conversation_context
+        }
         
         return workflow_state
 

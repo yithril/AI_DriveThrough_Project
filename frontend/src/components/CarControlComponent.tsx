@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSpeaker } from '@/contexts/SpeakerContext';
 import { useData } from '@/contexts/DataContext';
+import { useSession } from '@/contexts/SessionContext';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import AudioPlayer from '@/components/AudioPlayer';
 
@@ -20,48 +21,24 @@ export default function CarControlComponent() {
   const { theme } = useTheme();
   const { setAISpeaking } = useSpeaker();
   const { restaurant } = useData();
+  const { sessionId, createSession, clearSession, greetingAudioUrl } = useSession();
   const [currentCar, setCurrentCar] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [greetingAudioUrl, setGreetingAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [shouldPlayGreeting, setShouldPlayGreeting] = useState(false);
 
   const handleNewCar = async () => {
     setIsProcessing(true);
     setError(null);
     
     try {
-      // Call the backend API to create a new car session
-      const requestBody = {
-        restaurant_id: restaurant?.id || 1
-      };
+      // Use the SessionContext to create a new session
+      await createSession(restaurant?.id || 1);
       
-      console.log('Sending request body:', requestBody);
-      console.log('Stringified body:', JSON.stringify(requestBody));
+      // Set the current car number and trigger greeting audio
+      setCurrentCar(Math.floor(Math.random() * 100) + 1);
+      setShouldPlayGreeting(true);
       
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiBaseUrl}/api/sessions/new-car`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`HTTP error! status: ${response.status}, response: ${errorText}`);
-        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-      }
-
-      const result: NewCarResponse = await response.json();
-      
-      if (result.success && result.data.greeting_audio_url) {
-        // Set the greeting audio URL to trigger playback
-        setGreetingAudioUrl(result.data.greeting_audio_url);
-        setCurrentCar(Math.floor(Math.random() * 100) + 1);
-      } else {
-        throw new Error('No greeting audio URL received from server');
-      }
     } catch (error) {
       console.error('Error creating new car session:', error);
       setError(error instanceof Error ? error.message : 'Failed to create new car session');
@@ -74,28 +51,13 @@ export default function CarControlComponent() {
     if (currentCar) {
       setIsProcessing(true);
       try {
-        // Call the backend API to handle next car
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiBaseUrl}/api/sessions/next-car`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
+        // Use the SessionContext to clear the session
+        await clearSession();
         
-        if (result.success) {
-          console.log(`Car ${currentCar} has arrived and order is ready`);
-          setCurrentCar(null);
-          setGreetingAudioUrl(null);
-        } else {
-          throw new Error(result.message || 'Failed to handle next car');
-        }
+        console.log(`Car ${currentCar} has arrived and order is ready`);
+        setCurrentCar(null);
+        setShouldPlayGreeting(false);
+        
       } catch (error) {
         console.error('Error handling next car:', error);
         setError(error instanceof Error ? error.message : 'Failed to handle next car');
@@ -113,14 +75,14 @@ export default function CarControlComponent() {
   const handleAudioPlayEnd = () => {
     console.log('Greeting audio finished playing');
     setAISpeaking(false);
-    setGreetingAudioUrl(null); // Clear the URL after playback
+    setShouldPlayGreeting(false); // Stop playing after it ends
   };
 
   const handleAudioError = (error: string) => {
     console.error('Audio playback error:', error);
     setAISpeaking(false);
     setError(`Audio playback failed: ${error}`);
-    setGreetingAudioUrl(null);
+    setShouldPlayGreeting(false); // Stop trying to play on error
   };
 
   return (
@@ -132,9 +94,9 @@ export default function CarControlComponent() {
         Car Control
       </h3>
       
-      {/* Audio Player - Hidden, plays greeting audio */}
+      {/* Audio Player - Hidden, plays greeting audio only when shouldPlayGreeting is true */}
       <AudioPlayer
-        audioUrl={greetingAudioUrl}
+        audioUrl={shouldPlayGreeting ? greetingAudioUrl : null}
         autoPlay={true}
         onPlayStart={handleAudioPlayStart}
         onPlayEnd={handleAudioPlayEnd}

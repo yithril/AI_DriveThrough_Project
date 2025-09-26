@@ -62,9 +62,11 @@ class TestAddItemCommand:
         # Verify service was called with correct parameters
         call_args = command_context.order_service.add_item_to_order.call_args
         assert call_args is not None
-        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['order_id'] == "123"  # Now converted to string
         assert call_args.kwargs['menu_item_id'] == 456
         assert call_args.kwargs['quantity'] == 2
+        assert call_args.kwargs['session_id'] == "test_session"  # NEW: session_id
+        assert call_args.kwargs['restaurant_id'] == 1  # NEW: restaurant_id
         assert call_args.kwargs['customizations'] == ["no_pickles"]
         assert call_args.kwargs['special_instructions'] == "Well done"
         assert call_args.kwargs['size'] == "large"
@@ -84,9 +86,11 @@ class TestAddItemCommand:
         # Verify service was called with defaults
         call_args = command_context.order_service.add_item_to_order.call_args
         assert call_args is not None
-        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['order_id'] == "123"  # Now converted to string
         assert call_args.kwargs['menu_item_id'] == 456
         assert call_args.kwargs['quantity'] == 1
+        assert call_args.kwargs['session_id'] == "test_session"  # NEW: session_id
+        assert call_args.kwargs['restaurant_id'] == 1  # NEW: restaurant_id
         assert call_args.kwargs['customizations'] == []
         assert call_args.kwargs['special_instructions'] is None
         assert call_args.kwargs['size'] is None
@@ -112,9 +116,11 @@ class TestAddItemCommand:
         # Verify service was called with all complex parameters
         call_args = command_context.order_service.add_item_to_order.call_args
         assert call_args is not None
-        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['order_id'] == "123"  # Now converted to string
         assert call_args.kwargs['menu_item_id'] == 456
         assert call_args.kwargs['quantity'] == 3
+        assert call_args.kwargs['session_id'] == "test_session"  # NEW: session_id
+        assert call_args.kwargs['restaurant_id'] == 1  # NEW: restaurant_id
         assert call_args.kwargs['customizations'] == ["extra cheese", "no pickles", "heavy sauce", "extra crispy"]
         assert call_args.kwargs['special_instructions'] == "well done, cut in half"
         assert call_args.kwargs['size'] == "large"
@@ -139,7 +145,7 @@ class TestAddItemCommand:
         # Verify quantity is passed correctly
         call_args = command_context.order_service.add_item_to_order.call_args
         assert call_args is not None
-        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['order_id'] == "123"  # Now converted to string
         assert call_args.kwargs['menu_item_id'] == 456
         assert call_args.kwargs['quantity'] == 5
         assert call_args.kwargs['customizations'] == ["no onions"]
@@ -165,7 +171,7 @@ class TestAddItemCommand:
         # Verify empty modifiers are handled correctly
         call_args = command_context.order_service.add_item_to_order.call_args
         assert call_args is not None
-        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['order_id'] == "123"  # Now converted to string
         assert call_args.kwargs['menu_item_id'] == 456
         assert call_args.kwargs['quantity'] == 1
         assert call_args.kwargs['customizations'] == []
@@ -192,7 +198,7 @@ class TestAddItemCommand:
         # Verify None parameters are handled correctly (converted to defaults)
         call_args = command_context.order_service.add_item_to_order.call_args
         assert call_args is not None
-        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['order_id'] == "123"  # Now converted to string
         assert call_args.kwargs['menu_item_id'] == 456
         assert call_args.kwargs['quantity'] == 2
         assert call_args.kwargs['customizations'] == []
@@ -218,7 +224,7 @@ class TestAddItemCommand:
         # Verify whitespace modifiers are NOT filtered (AddItemCommand doesn't filter them)
         call_args = command_context.order_service.add_item_to_order.call_args
         assert call_args is not None
-        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['order_id'] == "123"  # Now converted to string
         assert call_args.kwargs['menu_item_id'] == 456
         assert call_args.kwargs['quantity'] == 1
         assert call_args.kwargs['customizations'] == ["  extra cheese  ", "", "no pickles", "   "]  # All modifiers passed through
@@ -243,7 +249,7 @@ class TestAddItemCommand:
         # Verify whitespace-only special instructions are NOT converted (AddItemCommand doesn't filter them)
         call_args = command_context.order_service.add_item_to_order.call_args
         assert call_args is not None
-        assert call_args.kwargs['order_id'] == 123
+        assert call_args.kwargs['order_id'] == "123"  # Now converted to string
         assert call_args.kwargs['menu_item_id'] == 456
         assert call_args.kwargs['quantity'] == 1
         assert call_args.kwargs['customizations'] == []
@@ -347,10 +353,12 @@ class TestRemoveItemCommand:
         assert "Item removed from order successfully" in result.message
         
         # Verify service was called with correct parameters
-        command_context.order_service.remove_item_from_order.assert_called_once_with(
-            order_id=123,
-            order_item_id=456
-        )
+        command_context.order_service.remove_item_from_order.assert_called_once()
+        call_args = command_context.order_service.remove_item_from_order.call_args
+        assert call_args.kwargs['order_id'] == "123"  # Now converted to string
+        assert call_args.kwargs['order_item_id'] == "456"  # Now converted to string
+        assert call_args.kwargs['session_id'] == "test_session"  # NEW: session_id
+        assert call_args.kwargs['restaurant_id'] == 1  # NEW: restaurant_id
     
     @pytest.mark.asyncio
     async def test_execute_by_target_ref(self, command_context):
@@ -426,11 +434,12 @@ class TestClearOrderCommand:
         assert result.is_success
         assert "Order cleared successfully" in result.message
         
-        # Verify service was called with db and order_id
+        # Verify service was called with correct parameters
         command_context.order_service.clear_order.assert_called_once()
-        # Check that it was called with db (AsyncMock) and order_id
         call_args = command_context.order_service.clear_order.call_args
-        assert call_args[0][1] == 123  # order_id is second argument
+        assert call_args.kwargs['order_id'] == "123"  # Now converted to string
+        assert call_args.kwargs['session_id'] == "test_session"  # NEW: session_id
+        assert call_args.kwargs['restaurant_id'] == 1  # NEW: restaurant_id
 
 
 class TestConfirmOrderCommand:
@@ -477,14 +486,16 @@ class TestConfirmOrderCommand:
         assert "Order confirmed" in result.message
         assert "2 items, total: $14.98" in result.message
         
-        # Verify services were called with db and order_id
+        # Verify services were called with correct parameters
         command_context.order_service.get_order.assert_called_once()
-        command_context.order_service.confirm_order.assert_called_once()
-        # Check that order_id was passed correctly
         get_order_call = command_context.order_service.get_order.call_args
+        assert get_order_call[0][1] == 123  # get_order uses positional args: (db, order_id)
+        
+        command_context.order_service.confirm_order.assert_called_once()
         confirm_order_call = command_context.order_service.confirm_order.call_args
-        assert get_order_call[0][1] == 123  # order_id is second argument
-        assert confirm_order_call[0][1] == 123  # order_id is second argument
+        assert confirm_order_call.kwargs['order_id'] == "123"  # Now converted to string
+        assert confirm_order_call.kwargs['session_id'] == "test_session"  # NEW: session_id
+        assert confirm_order_call.kwargs['restaurant_id'] == 1  # NEW: restaurant_id
     
     @pytest.mark.asyncio
     async def test_execute_empty_order(self, command_context):
@@ -508,7 +519,7 @@ class TestConfirmOrderCommand:
         assert "Cannot confirm empty order" in result.message
 
 
-class TestRepeatCommand:
+# class TestRepeatCommand:  # Commented out - RepeatCommand doesn't exist
     """Test RepeatCommand execution"""
     
     @pytest.fixture
@@ -537,43 +548,7 @@ class TestRepeatCommand:
         context.set_order_service(mock_order_service)
         return context
     
-    @pytest.mark.asyncio
-    async def test_execute_full_order(self, command_context):
-        """Test repeating full order"""
-        command = RepeatCommand(
-            restaurant_id=1,
-            order_id=123,
-            scope="full_order"
-        )
-        
-        result = await command.execute(command_context, AsyncMock())
-        
-        assert result.is_success
-        assert "Here's your order:" in result.message
-        assert "Burger ($9.99)" in result.message
-        assert "Fries ($4.99)" in result.message
-        assert "Total: $14.98" in result.message
-    
-    @pytest.mark.asyncio
-    async def test_execute_empty_order(self, command_context):
-        """Test repeating empty order"""
-        command_context.order_service.get_order.return_value = OrderResult.success("Order retrieved", data={
-            "order": {
-                "order_items": [],
-                "total_amount": 0.0
-            }
-        })
-        
-        command = RepeatCommand(
-            restaurant_id=1,
-            order_id=123,
-            scope="full_order"
-        )
-        
-        result = await command.execute(command_context, AsyncMock())
-        
-        assert result.is_error
-        assert "No items in order to repeat" in result.message
+    # Removed test_execute_full_order and test_execute_empty_order - they were testing RepeatCommand which doesn't exist
 
 
 class TestQuestionCommand:

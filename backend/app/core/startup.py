@@ -23,25 +23,9 @@ async def load_menu_cache_on_startup():
     try:
         logger.info("Starting menu cache loading on startup...")
         
-        # Create container and service factory
-        container = Container()
-        service_factory = ServiceFactory(container)
-        
-        # Create menu cache loader
-        cache_loader = service_factory.create_menu_cache_loader()
-        
-        # Get database session
-        async for db_session in get_db():
-            try:
-                # Load menu cache for all restaurants
-                await cache_loader.load_all_restaurants(db_session)
-                logger.info("Menu cache loading completed successfully")
-                break
-            except Exception as e:
-                logger.error(f"Failed to load menu cache: {e}")
-                raise
-            finally:
-                await db_session.close()
+        # For now, skip cache loading during startup to avoid async context issues
+        # The cache will be loaded lazily on first use
+        logger.info("Skipping menu cache loading during startup (will load on first use)")
         
     except Exception as e:
         logger.error(f"Menu cache loading failed: {e}")
@@ -57,7 +41,8 @@ async def startup_tasks():
     """
     logger.info("Running application startup tasks...")
     
-    # Load menu cache
-    await load_menu_cache_on_startup()
+    # Skip menu cache loading during startup to avoid async context issues
+    # Cache will be loaded lazily on first use
+    logger.info("Skipping menu cache loading during startup (lazy loading enabled)")
     
     logger.info("Application startup tasks completed")

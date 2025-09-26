@@ -3,7 +3,7 @@ Base parser classes and interfaces for intent parsing.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Union
 from dataclasses import dataclass
 from app.commands.intent_classification_schema import IntentType
 
@@ -14,19 +14,35 @@ class ParserResult:
     Standard result from any parser.
     
     Contains the parsed command data that can be used by CommandFactory.
+    Supports both single commands and multiple commands.
     """
     success: bool
-    command_data: Optional[Dict[str, Any]] = None
+    command_data: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
     error_message: Optional[str] = None
     
     @classmethod
-    def success_result(cls, command_data: Dict[str, Any]) -> "ParserResult":
-        """Create a successful parser result with command data."""
+    def success_result(cls, command_data: Union[Dict[str, Any], List[Dict[str, Any]]]) -> "ParserResult":
+        """Create a successful parser result with command data (single or multiple)."""
         return cls(
             success=True,
             command_data=command_data
         )
     
+    @classmethod
+    def success_single_command(cls, command_data: Dict[str, Any]) -> "ParserResult":
+        """Create a successful parser result with a single command."""
+        return cls(
+            success=True,
+            command_data=command_data
+        )
+    
+    @classmethod
+    def success_multiple_commands(cls, command_data: List[Dict[str, Any]]) -> "ParserResult":
+        """Create a successful parser result with multiple commands."""
+        return cls(
+            success=True,
+            command_data=command_data
+        )
     
     @classmethod
     def error_result(cls, error_message: str) -> "ParserResult":
@@ -35,6 +51,19 @@ class ParserResult:
             success=False,
             error_message=error_message
         )
+    
+    def is_multiple_commands(self) -> bool:
+        """Check if this result contains multiple commands."""
+        return isinstance(self.command_data, list)
+    
+    def get_commands_list(self) -> List[Dict[str, Any]]:
+        """Get commands as a list (handles both single and multiple commands)."""
+        if self.command_data is None:
+            return []
+        elif isinstance(self.command_data, list):
+            return self.command_data
+        else:
+            return [self.command_data]
 
 
 class BaseParser(ABC):

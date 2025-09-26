@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { MenuItem, ThemeColors } from '@/types/restaurant';
+import { getImageUrl } from '@/lib/s3-utils';
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -21,21 +22,7 @@ const getPriceBadgeColor = (price: number, isEnd: boolean = false): string => {
 };
 
 export default function MenuItemCard({ item, theme, restaurantId }: MenuItemCardProps) {
-  // Construct the full image URL from the filename
-  const getImageUrl = (imageUrl: string | null, restaurantId: number) => {
-    if (!imageUrl) return null;
-    
-    // If it's already a full URL, return as is
-    if (imageUrl.startsWith('http')) {
-      return imageUrl;
-    }
-    
-    // Get S3 bucket URL from environment variable
-    const s3BucketUrl = process.env.NEXT_PUBLIC_S3_BUCKET_URL || 'https://ai-drivethru-files.s3.us-east-2.amazonaws.com';
-    return `${s3BucketUrl}/restaurants/${restaurantId}/images/${imageUrl}`;
-  };
-
-  const fullImageUrl = getImageUrl(item.image_url || null, restaurantId || 20);
+  const fullImageUrl = item.image_url ? getImageUrl(item.image_url, restaurantId || 20) : '/placeholder-image.png';
 
   return (
     <div 

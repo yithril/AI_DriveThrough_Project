@@ -104,14 +104,22 @@ class RedisService:
         Returns:
             bool: True if successful, False otherwise
         """
+        logger.info(f"Redis SET operation starting - key: {key}, value length: {len(value)}, ttl: {ttl}")
+        
         if not self.connected:
+            logger.error(f"Redis SET failed - not connected for key {key}")
             return False
         
         try:
-            await self.redis_client.setex(key, ttl, value)
+            logger.info(f"Executing Redis SETEX for key {key}")
+            result = await self.redis_client.setex(key, ttl, value)
+            logger.info(f"Redis SETEX result for key {key}: {result}")
             return True
         except Exception as e:
             logger.error(f"Redis SET failed for key {key}: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Redis SET traceback: {traceback.format_exc()}")
             return False
     
     async def delete(self, key: str) -> bool:

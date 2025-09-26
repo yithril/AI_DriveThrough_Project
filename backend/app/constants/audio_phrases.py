@@ -47,6 +47,7 @@ class AudioPhraseType(Enum):
     ITEM_UPDATED_SUCCESS = "item_updated_success"
     ORDER_CLEARED_SUCCESS = "order_cleared_success"
     ITEM_UNAVAILABLE = "item_unavailable"
+    QUANTITY_TOO_HIGH = "quantity_too_high"
     SYSTEM_ERROR_RETRY = "system_error_retry"
     NOTHING_TO_REPEAT = "nothing_to_repeat"
     
@@ -89,7 +90,7 @@ class AudioPhraseConstants:
             AudioPhraseType.SUGGESTION_2: "Can I interest you in our combo meal?",
             AudioPhraseType.SUGGESTION_3: "Would you like to add a drink to your order?",
             AudioPhraseType.ORDER_CONFIRM: "Is that correct?",
-            AudioPhraseType.ORDER_COMPLETE: "Perfect! Your order is ready.",
+            AudioPhraseType.ORDER_COMPLETE: "If everything looks correct on your screen, please pull around to the next window.",
             AudioPhraseType.SCREEN_CONFIRM: "Does everything on your screen look correct?",
             
             # State machine specific phrases
@@ -117,6 +118,7 @@ class AudioPhraseConstants:
             AudioPhraseType.ITEM_REMOVED_SUCCESS: "Removed that from your order. Would you like anything else?",
             AudioPhraseType.ITEM_UPDATED_SUCCESS: "Updated your item. Would you like anything else?",
             AudioPhraseType.ITEM_UNAVAILABLE: "Sorry, we don't have that on our menu. Would you like to try something else?",
+            AudioPhraseType.QUANTITY_TOO_HIGH: "I'm sorry, but we can only serve a limited quantity of each item. Would you like to order fewer?",
             AudioPhraseType.ORDER_CLEARED_SUCCESS: "Your order has been cleared.",
             AudioPhraseType.NOTHING_TO_REPEAT: "There's nothing to repeat yet.",
             AudioPhraseType.SYSTEM_ERROR_RETRY: "I'm sorry, I'm having some technical difficulties. Please try again.",

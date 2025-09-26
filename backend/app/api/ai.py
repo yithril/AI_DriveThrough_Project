@@ -87,9 +87,10 @@ async def process_audio(
         )
         
         # Check if workflow processing had errors
-        if workflow_state.has_errors():
+        if workflow_state.get('errors') or not workflow_state.get('success', True):
             # Check error type and return appropriate HTTP status code
-            error_message = '; '.join(workflow_state.errors)
+            errors = workflow_state.get('errors', [])
+            error_message = '; '.join(errors) if errors else 'Processing failed'
             error_lower = error_message.lower()
             
             if any(keyword in error_lower for keyword in ['restaurant', 'session']) and 'not found' in error_lower:
@@ -114,14 +115,14 @@ async def process_audio(
         # Return simplified response to frontend
         return {
             "success": True,
-            "session_id": workflow_state.session_id,
-            "audio_url": workflow_state.audio_url,
-            "response_text": workflow_state.response_text,
-            "order_state_changed": workflow_state.order_state_changed,  # Tell frontend if order was modified
+            "session_id": workflow_state.get('session_id'),
+            "audio_url": workflow_state.get('audio_url'),
+            "response_text": workflow_state.get('response_text'),
+            "order_state_changed": workflow_state.get('order_state_changed', False),  # Tell frontend if order was modified
             "metadata": {
                 "processing_time": 0.0,  # TODO: Add actual timing
                 "cached": False,  # TODO: Add caching logic
-                "errors": workflow_state.errors if workflow_state.errors else None
+                "errors": workflow_state.get('errors') if workflow_state.get('errors') else None
             }
         }
         

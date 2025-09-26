@@ -3,6 +3,7 @@ Order service for managing orders with validation
 """
 
 from typing import List, Optional, Dict, Any
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.order import Order, OrderStatus
 from ..models.order_item import OrderItem
@@ -10,6 +11,7 @@ from ..core.unit_of_work import UnitOfWork
 from .order_validator import OrderValidator
 from .order_session_interface import OrderSessionInterface
 from .customization_validation_service import CustomizationValidationService
+from .voice_service import VoiceService
 from ..constants.audio_phrases import AudioPhraseConstants, AudioPhraseType
 from ..dto.order_result import OrderResult, OrderResultStatus
 from ..core.config import settings
@@ -27,10 +29,12 @@ class OrderService:
     Uses repositories for data access and validator for business logic
     """
     
-    def __init__(self, order_session_service: OrderSessionInterface, customization_validator: CustomizationValidationService):
+    def __init__(self, order_session_service: OrderSessionInterface, customization_validator: CustomizationValidationService, voice_service: VoiceService, order_validator: OrderValidator):
         # Business logic layer uses OrderSessionService for all storage operations
         self.storage = order_session_service
         self.customization_validator = customization_validator
+        self.voice_service = voice_service
+        self.order_validator = order_validator
     
     
     async def handle_new_car(self, db: AsyncSession, restaurant_id: int, customer_name: Optional[str] = None) -> OrderResult:
@@ -49,21 +53,47 @@ class OrderService:
             OrderResult: Result with new session and greeting audio URL
         """
         try:
+            logger.info(f"Starting handle_new_car for restaurant_id={restaurant_id}, customer_name={customer_name}")
+            
             # Check if current session exists and cancel it
             current_session = await self.storage.get_current_session_id()
+            logger.info(f"Current session check result: {current_session}")
             if current_session:
                 logger.info(f"Cancelling existing session {current_session}")
                 await self._cancel_session(current_session)
             
             # Create new session
             session_id = f"session_{int(datetime.now().timestamp() * 1000)}"
+            logger.info(f"Generated new session_id: {session_id}")
             
-            # Create session data
-            session_data = {
-                "id": session_id,
+            # Create session using the proper conversation session method
+            logger.info(f"Calling create_new_conversation_session for session_id={session_id}")
+            session_created = await self.storage.create_new_conversation_session(
+                session_id=session_id,
+                restaurant_id=restaurant_id,
+                customer_name=customer_name
+            )
+            logger.info(f"Session creation result: {session_created}")
+            
+            if not session_created:
+                # Redis is the single source of truth - no fallback to PostgreSQL
+                logger.error(f"Failed to create session {session_id} in Redis - Redis is the single source of truth for sessions")
+                return OrderResult.error(f"Failed to create session: Redis unavailable or session creation failed")
+            
+            # Set current session
+            await self.storage.set_current_session_id(session_id)
+            
+            # Create order and link it to the session
+            order_id = f"redis_{int(datetime.now().timestamp() * 1000)}"
+            logger.info(f"Creating order {order_id} for session {session_id}")
+            
+            # Create initial order data
+            order_data = {
+                "id": order_id,
+                "session_id": session_id,
                 "restaurant_id": restaurant_id,
                 "customer_name": customer_name,
-                "status": "NEW",
+                "status": "ACTIVE",
                 "items": [],
                 "subtotal": 0.0,
                 "tax_amount": 0.0,
@@ -72,18 +102,31 @@ class OrderService:
                 "updated_at": datetime.now().isoformat()
             }
             
-            # Create session using OrderSessionService
-            session_created = await self.storage.create_session(session_data, ttl=900)
-            if not session_created:
-                # Fallback to PostgreSQL if session creation failed
-                logger.warning("Failed to create session in storage, falling back to PostgreSQL")
-                return await self._create_db_order(db, restaurant_id, customer_name)
+            # Create order in Redis
+            order_created = await self.storage.create_order(db, order_data)
+            if not order_created:
+                logger.error(f"Failed to create order {order_id}")
+                return OrderResult.error("Failed to create order")
             
-            # Set current session
-            await self.storage.set_current_session_id(session_id)
+            # Link order to session
+            session_data = await self.storage.get_session(session_id)
+            if session_data:
+                session_data["order_id"] = order_id
+                await self.storage.update_session(session_id, session_data)
+                logger.info(f"Linked order {order_id} to session {session_id}")
+            else:
+                logger.error(f"Failed to get session data to link order")
+                return OrderResult.error("Failed to link order to session")
             
-            # Get greeting audio URL for this session
-            greeting_audio_url = self._get_greeting_audio_url(restaurant_id, session_id)
+            # Get updated session data
+            session_data = await self.storage.get_session(session_id)
+            
+            # Get greeting audio URL for this session using voice service
+            greeting_audio_url = await self.voice_service.generate_audio(
+                phrase_type=AudioPhraseType.GREETING,
+                restaurant_id=restaurant_id,
+                restaurant_name=None  # Could be fetched from restaurant data if needed
+            )
             
             logger.info(f"Created new session {session_id} for restaurant {restaurant_id}")
             return OrderResult.success(
@@ -289,9 +332,20 @@ class OrderService:
             success = await self.storage.create_order(db, order_data)
             if success:
                 logger.info(f"Created PostgreSQL order for restaurant {restaurant_id}")
+                
+                # Get greeting audio URL using voice service
+                greeting_audio_url = await self.voice_service.generate_audio(
+                    phrase_type=AudioPhraseType.GREETING,
+                    restaurant_id=restaurant_id,
+                    restaurant_name=None
+                )
+                
                 return OrderResult.success(
                     f"Order created successfully",
-                    data={"order": order_data}
+                    data={
+                        "session": order_data,  # Use order_data as session data for fallback
+                        "greeting_audio_url": greeting_audio_url
+                    }
                 )
             else:
                 return OrderResult.error("Failed to create order")
@@ -429,42 +483,6 @@ class OrderService:
                 new_stock = float(inventory.current_stock) + quantity_to_restore
                 await uow.inventory.update(inventory.id, current_stock=new_stock)
     
-    def _get_greeting_audio_url(self, restaurant_id: int, session_id: str) -> Optional[str]:
-        """
-        Get greeting audio URL for a new session using existing canned audio files
-        
-        Args:
-            restaurant_id: Restaurant ID
-            session_id: Session ID
-            
-        Returns:
-            str: URL to the greeting audio file, or None if not available
-        """
-        try:
-            # Use the same path structure as the import script: restaurants/{id}/audio/{filename}
-            blob_path = f"restaurants/{restaurant_id}/audio/greeting.mp3"
-            
-            # Construct the URL to the existing canned audio file
-            # This assumes the files are accessible via HTTP (LocalStack S3 or real S3)
-            endpoint_url = os.getenv('AWS_ENDPOINT_URL')
-            bucket_name = os.getenv('S3_BUCKET_NAME', 'ai-drivethru-files')
-            
-            if endpoint_url:
-                # LocalStack or custom endpoint
-                greeting_url = f"{endpoint_url}/{bucket_name}/{blob_path}"
-            else:
-                # Real AWS S3 - use S3_REGION instead of AWS_REGION
-                region = os.getenv('S3_REGION', 'us-east-1')
-                greeting_url = f"https://{bucket_name}.s3.{region}.amazonaws.com/{blob_path}"
-            
-            # TODO: Add file existence check here to return None if file doesn't exist
-            # For now, we'll return the URL and let the frontend handle 404s gracefully
-            logger.info(f"Using greeting audio URL for session {session_id}: {greeting_url}")
-            return greeting_url
-                
-        except Exception as e:
-            logger.error(f"Failed to get greeting audio URL: {str(e)}")
-            return None
     
     # ============================================================================
     # CART OPERATION METHODS - Called by Commands
@@ -477,6 +495,8 @@ class OrderService:
         order_id: str, 
         menu_item_id: int, 
         quantity: int, 
+        session_id: str,
+        restaurant_id: int,
         customizations: Optional[List[str]] = None, 
         special_instructions: Optional[str] = None,
         size: Optional[str] = None
@@ -490,6 +510,8 @@ class OrderService:
             order_id: Order ID to add item to
             menu_item_id: Menu item ID to add
             quantity: Quantity to add
+            session_id: Session ID for defensive order creation
+            restaurant_id: Restaurant ID for defensive order creation
             customizations: List of modifiers/customizations
             special_instructions: Special cooking instructions
             size: Item size (e.g., "Large", "Small")
@@ -497,7 +519,47 @@ class OrderService:
         Returns:
             OrderResult: Result with order_item data and comprehensive message
         """
+        print(f"\n🔍 DEBUG - ORDER SERVICE ADD_ITEM_TO_ORDER:")
+        print(f"   Order ID: {order_id}")
+        print(f"   Menu Item ID: {menu_item_id}")
+        print(f"   Quantity: {quantity}")
+        print(f"   Session ID: {session_id}")
+        print(f"   Restaurant ID: {restaurant_id}")
+        print(f"   Customizations: {customizations}")
+        print(f"   Special Instructions: {special_instructions}")
+        print(f"   Size: {size}")
+        
         try:
+            # 0. VALIDATION FIRST - Check quantity limits and business rules
+            print(f"   🔍 VALIDATION: Checking quantity limits and business rules...")
+            print(f"   🔍 DEBUG - Calling validator with restaurant_id: {restaurant_id}, menu_item_id: {menu_item_id}")
+            validation_result = await self.order_validator.validate_add_item(
+                restaurant_id=restaurant_id,
+                menu_item_id=menu_item_id,
+                quantity=quantity
+            )
+            
+            if not validation_result.is_success:
+                print(f"   ❌ VALIDATION FAILED: {validation_result.message}")
+                return validation_result
+            
+            print(f"   ✅ VALIDATION PASSED: {validation_result.message}")
+            # 0. Find or create order for this session
+            actual_order_id = await self.find_order_for_session(db, session_id)
+            if not actual_order_id:
+                # No order exists for this session, create one
+                print(f"   🔄 No order found for session {session_id}, creating new order...")
+                order_exists = await self._ensure_order_exists(db, order_id, session_id, restaurant_id)
+                if not order_exists:
+                    return OrderResult.error("Failed to create order for session")
+                # Get the newly created order ID
+                actual_order_id = await self.find_order_for_session(db, session_id)
+                if not actual_order_id:
+                    return OrderResult.error("Failed to retrieve created order ID")
+            
+            print(f"   🎯 Using order ID: {actual_order_id} for session: {session_id}")
+            order_id = actual_order_id  # Use the actual order ID
+            
             # 1. Get menu item details from database
             menu_item_details = await self._get_menu_item_details(db, menu_item_id)
             if not menu_item_details:
@@ -560,6 +622,7 @@ class OrderService:
                 "total_price": total_item_price,
                 "customizations": customizations or [],
                 "special_instructions": special_instructions,
+                "size": size,
                 "created_at": datetime.now().isoformat()
             }
             
@@ -573,26 +636,39 @@ class OrderService:
             order_data["updated_at"] = datetime.now().isoformat()
             
             # 8. Save updated order to storage (Redis/PostgreSQL)
+            print(f"   💾 Saving updated order to storage...")
+            print(f"   📊 Order data items count: {len(order_data.get('items', []))}")
+            print(f"   💰 Order total: {order_data.get('total_amount', 0)}")
             save_success = await self.storage.update_order(db, order_id, order_data, ttl=1800)
             if not save_success:
+                print(f"   ❌ Failed to save updated order")
                 return OrderResult.error("Failed to save updated order")
+            else:
+                print(f"   ✅ Successfully saved updated order")
             
             # 9. Generate comprehensive message
             message = self._generate_add_item_message(
                 quantity, menu_item_details, customizations, size, special_instructions
             )
+            print(f"   📝 Generated message: {message}")
             
             # 10. Return OrderResult with order_item data
+            print(f"   ✅ Successfully added {quantity}x {menu_item_details['name']} to order {order_id}")
             logger.info(f"Added {quantity}x {menu_item_details['name']} to order {order_id}")
-            return OrderResult.success(
+            
+            result = OrderResult.success(
                 message,
                 data={
                     "order_item": order_item,
                     "order": order_data
                 }
             )
+            print(f"   🎯 Final result: success={result.is_success}, message='{result.message}'")
+            return result
             
         except Exception as e:
+            print(f"   ❌ Exception in add_item_to_order: {str(e)}")
+            print(f"   📊 Exception type: {type(e).__name__}")
             logger.error(f"Failed to add item to order: {str(e)}")
             return OrderResult.error(f"Failed to add item to order: {str(e)}")
     
@@ -600,7 +676,9 @@ class OrderService:
         self, 
         db: AsyncSession,
         order_id: str, 
-        order_item_id: str
+        order_item_id: str,
+        session_id: str,
+        restaurant_id: int
     ) -> OrderResult:
         """
         Remove item from order - called by RemoveItemCommand
@@ -610,6 +688,8 @@ class OrderService:
             db: Database session
             order_id: Order ID to remove item from
             order_item_id: ID of the order item to remove (resolved from target_ref)
+            session_id: Session ID for defensive order creation
+            restaurant_id: Restaurant ID for defensive order creation
             
         Returns:
             OrderResult: Result of item removal
@@ -669,7 +749,9 @@ class OrderService:
         db: AsyncSession,
         order_id: str, 
         order_item_id: str,
-        changes: Dict[str, Any]
+        changes: Dict[str, Any],
+        session_id: str,
+        restaurant_id: int
     ) -> OrderResult:
         """
         Modify an existing order item - called by ModifyItemCommand
@@ -680,6 +762,8 @@ class OrderService:
             order_id: Order ID containing the item
             order_item_id: ID of the order item to modify (resolved from target_ref)
             changes: Dictionary of changes to apply (e.g., {"remove_modifier": "onions"})
+            session_id: Session ID for defensive order creation
+            restaurant_id: Restaurant ID for defensive order creation
             
         Returns:
             OrderResult: Result of modifying the item
@@ -777,7 +861,9 @@ class OrderService:
         db: AsyncSession,
         order_id: str, 
         order_item_id: str, 
-        quantity: int
+        quantity: int,
+        session_id: str,
+        restaurant_id: int
     ) -> OrderResult:
         """
         Update item quantity - called by SetQuantityCommand
@@ -788,6 +874,8 @@ class OrderService:
             order_id: Order ID containing the item
             order_item_id: ID of the order item to update (resolved from target_ref)
             quantity: New quantity
+            session_id: Session ID for defensive order creation
+            restaurant_id: Restaurant ID for defensive order creation
             
         Returns:
             OrderResult: Result of quantity update
@@ -853,7 +941,9 @@ class OrderService:
     async def clear_order(
         self, 
         db: AsyncSession,
-        order_id: str
+        order_id: str,
+        session_id: str,
+        restaurant_id: int
     ) -> OrderResult:
         """
         Clear all items from order - called by ClearOrderCommand
@@ -862,11 +952,18 @@ class OrderService:
         Args:
             db: Database session
             order_id: Order ID to clear
+            session_id: Session ID for defensive order creation
+            restaurant_id: Restaurant ID for defensive order creation
             
         Returns:
             OrderResult: Result of clearing order
         """
         try:
+            # 0. Defensive check: ensure order exists
+            order_exists = await self._ensure_order_exists(db, order_id, session_id, restaurant_id)
+            if not order_exists:
+                return OrderResult.error("Failed to ensure order exists")
+            
             # 1. Get current order from storage (Redis first, PostgreSQL fallback)
             order_data = await self.storage.get_order(db, order_id)
             if not order_data:
@@ -906,7 +1003,9 @@ class OrderService:
     async def confirm_order(
         self, 
         db: AsyncSession,
-        order_id: str
+        order_id: str,
+        session_id: str,
+        restaurant_id: int
     ) -> OrderResult:
         """
         Confirm order - called by ConfirmOrderCommand
@@ -915,11 +1014,18 @@ class OrderService:
         Args:
             db: Database session
             order_id: Order ID to confirm
+            session_id: Session ID for defensive order creation
+            restaurant_id: Restaurant ID for defensive order creation
             
         Returns:
             OrderResult: Result of order confirmation
         """
         try:
+            # 0. Defensive check: ensure order exists
+            order_exists = await self._ensure_order_exists(db, order_id, session_id, restaurant_id)
+            if not order_exists:
+                return OrderResult.error("Failed to ensure order exists")
+            
             # 1. Get current order from storage (Redis first, PostgreSQL fallback)
             order_data = await self.storage.get_order(db, order_id)
             if not order_data:
@@ -1045,6 +1151,115 @@ class OrderService:
         timestamp = int(time.time() * 1000)  # milliseconds
         random_part = random.randint(1000, 9999)
         return f"item_{timestamp}_{random_part}"
+    
+    async def find_order_for_session(self, db: AsyncSession, session_id: str) -> Optional[str]:
+        """
+        Find the order ID linked to a session.
+        
+        Args:
+            db: Database session
+            session_id: Session ID to find order for
+            
+        Returns:
+            str: Order ID if found, None if no order exists for this session
+        """
+        try:
+            print(f"\n🔍 DEBUG - FIND_ORDER_FOR_SESSION:")
+            print(f"   Session ID: {session_id}")
+            
+            # Check if session has an order in Redis
+            session_data = await self.storage.get_session(session_id)
+            if session_data and "order_id" in session_data:
+                order_id = session_data["order_id"]
+                print(f"   ✅ Found order ID in session: {order_id}")
+                return order_id
+            
+            print(f"   ❌ No order found for session {session_id}")
+            return None
+            
+        except Exception as e:
+            print(f"   ❌ Error finding order for session: {str(e)}")
+            return None
+
+    async def _ensure_order_exists(
+        self, 
+        db: AsyncSession, 
+        order_id: str, 
+        session_id: str, 
+        restaurant_id: int
+    ) -> bool:
+        """
+        Defensive helper method to ensure order exists, creating it if necessary.
+        
+        This method prevents system failures by automatically creating missing orders
+        when customers try to add items, ensuring they can continue ordering.
+        
+        Args:
+            db: Database session
+            order_id: Order ID to check/create
+            session_id: Session ID for order creation
+            restaurant_id: Restaurant ID for order creation
+            
+        Returns:
+            bool: True if order exists or was successfully created, False otherwise
+        """
+        try:
+            print(f"\n🔍 DEBUG - _ENSURE_ORDER_EXISTS:")
+            print(f"   Order ID: {order_id}")
+            print(f"   Session ID: {session_id}")
+            print(f"   Restaurant ID: {restaurant_id}")
+            
+            # Check if order already exists
+            order_data = await self.storage.get_order(db, order_id)
+            if order_data:
+                print(f"   ✅ Order {order_id} already exists")
+                logger.info(f"Order {order_id} already exists")
+                return True
+            
+            # Order doesn't exist - create it defensively
+            print(f"   ⚠️ Order {order_id} not found, creating defensively")
+            logger.warning(f"Order {order_id} not found, creating defensively")
+            
+            # Create new order with proper Redis order ID strategy
+            redis_order_id = f"redis_{int(datetime.now().timestamp() * 1000)}"
+            print(f"   🔗 Generated order ID: {redis_order_id} (linked to session: {session_id})")
+            
+            new_order_data = {
+                "id": redis_order_id,
+                "session_id": session_id,  # Link to the session
+                "restaurant_id": restaurant_id,
+                "items": [],
+                "subtotal": 0.0,
+                "tax_amount": 0.0,
+                "total_amount": 0.0,
+                "status": "ACTIVE",
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat()
+            }
+            
+            # Save the new order
+            print(f"   📝 Creating new order with data: {new_order_data}")
+            success = await self.storage.create_order(db, new_order_data)
+            if success:
+                print(f"   ✅ Successfully created defensive order {redis_order_id}")
+                
+                # Link the order to the session
+                session_data = await self.storage.get_session(session_id)
+                if session_data:
+                    session_data["order_id"] = redis_order_id
+                    await self.storage.update_session(session_id, session_data)
+                    print(f"   🔗 Linked order {redis_order_id} to session {session_id}")
+                
+                logger.info(f"Successfully created defensive order {redis_order_id}")
+                return True
+            else:
+                print(f"   ❌ Failed to create defensive order {redis_order_id}")
+                logger.error(f"Failed to create defensive order {redis_order_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error in _ensure_order_exists: {str(e)}")
+            return False
     
     def _generate_add_item_message(
         self, 

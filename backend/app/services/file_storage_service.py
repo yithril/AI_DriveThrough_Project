@@ -264,31 +264,64 @@ class S3FileStorageService(FileStorageInterface):
         
         # Initialize boto3 S3 client
         import boto3
+        import os
+        
+        # DEBUG: Log S3 configuration (without credentials)
+        print(f"DEBUG S3FileStorageService initialization:")
+        print(f"  bucket_name: {bucket_name}")
+        print(f"  region: {region}")
+        print(f"  endpoint_url: {endpoint_url}")
+        print(f"  AWS credentials: {'SET' if os.getenv('AWS_ACCESS_KEY_ID') and os.getenv('AWS_SECRET_ACCESS_KEY') else 'NOT_SET'}")
+        
         client_kwargs = {'region_name': region}
         if endpoint_url:
             client_kwargs['endpoint_url'] = endpoint_url
         self.s3_client = boto3.client('s3', **client_kwargs)
+        
+        print(f"DEBUG: S3 client created successfully")
     
     async def _ensure_bucket_exists(self):
         """Ensure the S3 bucket exists, create if it doesn't"""
         try:
+            print(f"DEBUG: Checking if bucket exists: {self.bucket_name}")
             # Check if bucket exists
             self.s3_client.head_bucket(Bucket=self.bucket_name)
+            print(f"DEBUG: Bucket exists: {self.bucket_name}")
         except self.s3_client.exceptions.NoSuchBucket:
+            print(f"DEBUG: Bucket doesn't exist, creating: {self.bucket_name}")
             # Create bucket if it doesn't exist
             self.s3_client.create_bucket(Bucket=self.bucket_name)
+            print(f"DEBUG: Bucket created: {self.bucket_name}")
         except Exception as e:
+            print(f"DEBUG: Error checking bucket: {str(e)}")
             # Try to create anyway
             try:
+                print(f"DEBUG: Attempting to create bucket: {self.bucket_name}")
                 self.s3_client.create_bucket(Bucket=self.bucket_name)
+                print(f"DEBUG: Bucket created after error: {self.bucket_name}")
             except Exception as create_error:
+                print(f"DEBUG: Failed to create bucket: {str(create_error)}")
                 raise
     
     async def store_file(self, file_data: bytes, file_name: str, content_type: str, restaurant_id: int = None, order_id: int = None) -> OrderResult:
         """Store file in S3 with restaurant/order organization"""
         try:
+            # DEBUG: Log what we're receiving
+            print(f"DEBUG S3FileStorageService.store_file called with:")
+            print(f"  file_data: {type(file_data)} - {len(file_data) if file_data else 'None'}")
+            print(f"  file_name: {file_name}")
+            print(f"  content_type: {content_type}")
+            print(f"  restaurant_id: {restaurant_id}")
+            print(f"  order_id: {order_id}")
+            
+            if file_data is None:
+                print("ERROR: file_data is None!")
+                return OrderResult.error("File data is None")
+            
             # Ensure bucket exists
+            print(f"DEBUG: About to ensure bucket exists: {self.bucket_name}")
             await self._ensure_bucket_exists()
+            print(f"DEBUG: Bucket exists check completed")
             
             # Determine file extension
             extension = self._get_extension_from_content_type(content_type)
@@ -317,6 +350,31 @@ class S3FileStorageService(FileStorageInterface):
                 file_id = str(uuid.uuid4())
                 s3_key = f"files/{file_id}{extension}"
             
+            # DEBUG: Log right before S3 upload
+            print(f"DEBUG: About to upload to S3:")
+            print(f"  Bucket: {self.bucket_name}")
+            print(f"  Key: {s3_key}")
+            print(f"  Body (file_data): {type(file_data)} - {len(file_data) if file_data else 'None'}")
+            print(f"  ContentType: {content_type} (type: {type(content_type)})")
+            print(f"  FileName: {file_name} (type: {type(file_name)})")
+            print(f"  S3 Client: {type(self.s3_client)}")
+            
+            if file_data is None:
+                print("ERROR: file_data is None right before S3 upload!")
+                return OrderResult.error("File data is None right before S3 upload")
+            
+            if content_type is None:
+                print("ERROR: content_type is None right before S3 upload!")
+                return OrderResult.error("Content type is None right before S3 upload")
+                
+            if file_name is None:
+                print("ERROR: file_name is None right before S3 upload!")
+                return OrderResult.error("File name is None right before S3 upload")
+            
+            if self.s3_client is None:
+                print("ERROR: S3 client is None!")
+                return OrderResult.error("S3 client is None")
+            
             # Upload to S3
             response = self.s3_client.put_object(
                 Bucket=self.bucket_name,
@@ -337,7 +395,7 @@ class S3FileStorageService(FileStorageInterface):
                 "size": len(file_data),
                 "stored_at": datetime.now().isoformat(),
                 "s3_key": s3_key,
-                "s3_url": f"s3://{self.bucket_name}/{s3_key}"
+                "s3_url": f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{s3_key}"
             }
             
             return OrderResult.success(
@@ -483,38 +541,4 @@ class S3FileStorageService(FileStorageInterface):
         return mime_to_ext.get(content_type.lower())
 
 
-class FileStorageService:
-    """
-    Main file storage service using S3
-    """
-    
-    def __init__(self, bucket_name: str, region: str = "us-east-1", endpoint_url: str = None):
-        """
-        Initialize file storage service with S3
-        
-        Args:
-            bucket_name: S3 bucket name
-            region: AWS region
-            endpoint_url: Custom endpoint URL (for LocalStack, MinIO, etc.)
-        """
-        self.storage = S3FileStorageService(bucket_name, region, endpoint_url)
-    
-    async def store_file(self, file_data: bytes, file_name: str, content_type: str) -> OrderResult:
-        """Store a file"""
-        return await self.storage.store_file(file_data, file_name, content_type)
-    
-    async def get_file(self, file_id: str) -> OrderResult:
-        """Retrieve a file"""
-        return await self.storage.get_file(file_id)
-    
-    async def delete_file(self, file_id: str) -> OrderResult:
-        """Delete a file"""
-        return await self.storage.delete_file(file_id)
-    
-    async def store_transcript(self, file_id: str, transcript: str, metadata: Dict[str, Any]) -> OrderResult:
-        """Store transcript data"""
-        return await self.storage.store_transcript(file_id, transcript, metadata)
-    
-    async def get_transcript(self, file_id: str) -> OrderResult:
-        """Retrieve transcript data"""
-        return await self.storage.get_transcript(file_id)
+# FileStorageService wrapper removed - use S3FileStorageService directly

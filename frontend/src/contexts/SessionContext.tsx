@@ -6,9 +6,10 @@ import { apiClient } from '@/lib/api';
 interface SessionContextType {
   sessionId: string | null;
   restaurantId: number | null;
+  greetingAudioUrl: string | null;
   isLoading: boolean;
   error: string | null;
-  createSession: (restaurantId: number) => Promise<void>;
+  createSession: (restaurantId: number) => Promise<string | null>; // Returns greeting audio URL
   clearSession: () => Promise<void>;
   refreshSession: () => Promise<void>;
 }
@@ -22,10 +23,11 @@ interface SessionProviderProps {
 export function SessionProvider({ children }: SessionProviderProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [restaurantId, setRestaurantId] = useState<number | null>(null);
+  const [greetingAudioUrl, setGreetingAudioUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createSession = async (newRestaurantId: number) => {
+  const createSession = async (newRestaurantId: number): Promise<string | null> => {
     setIsLoading(true);
     setError(null);
     
@@ -34,7 +36,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
       if (response.success) {
         setSessionId(response.data.session_id);
         setRestaurantId(newRestaurantId);
+        const greetingUrl = response.data.greeting_audio_url || null;
+        setGreetingAudioUrl(greetingUrl);
         console.log('New session created:', response.data.session_id);
+        return greetingUrl;
       } else {
         throw new Error('Failed to create session');
       }
@@ -42,6 +47,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create session';
       setError(errorMessage);
       console.error('Session creation error:', errorMessage);
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -56,6 +62,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       if (response.success) {
         setSessionId(null);
         setRestaurantId(null);
+        setGreetingAudioUrl(null);
         console.log('Session cleared');
       } else {
         throw new Error('Failed to clear session');
@@ -94,14 +101,15 @@ export function SessionProvider({ children }: SessionProviderProps) {
     }
   };
 
-  // Auto-refresh session on mount
-  useEffect(() => {
-    refreshSession();
-  }, []);
+  // No auto-refresh on mount - sessions should only be created when "New Car" is clicked
+  // useEffect(() => {
+  //   refreshSession();
+  // }, []);
 
   const value: SessionContextType = {
     sessionId,
     restaurantId,
+    greetingAudioUrl,
     isLoading,
     error,
     createSession,
